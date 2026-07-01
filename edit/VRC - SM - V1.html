@@ -1,0 +1,1747 @@
+<!doctype html>
+<html lang="fr">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VRC Session Manager</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { 
+      height: 100%;
+      margin: 0; 
+      padding: 0; 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    #app { 
+      height: 100%; 
+      display: flex; 
+      flex-direction: column;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+  </style>
+  <script>
+    const STORAGE_KEY = 'vrc_playtest_manager';
+    const VERSION = '1.0.0';
+    const ACCESS_PIN = '1950';
+    const AUTH_STORAGE_KEY = 'vrc_auth_status';
+
+    class AuthManager {
+      constructor() {
+        this.isAuthenticated = this.checkAuth();
+      }
+
+      checkAuth() {
+        return sessionStorage.getItem(AUTH_STORAGE_KEY) === 'authenticated';
+      }
+
+      authenticate(pin) {
+        if (pin === ACCESS_PIN) {
+          sessionStorage.setItem(AUTH_STORAGE_KEY, 'authenticated');
+          this.isAuthenticated = true;
+          return true;
+        }
+        return false;
+      }
+
+      logout() {
+        sessionStorage.removeItem(AUTH_STORAGE_KEY);
+        this.isAuthenticated = false;
+      }
+    }
+
+    const authManager = new AuthManager();
+
+    // ===== GOOGLE SHEETS ADAPTER =====
+    class GoogleSheetsAdapter {
+      constructor() {
+        this.isReady = false;
+        this.data = { sessions: [], items: [] };
+        this.onDataChangeCallback = null;
+        this.lastError = null;
+        // Configuration Google Sheets
+        this.SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxnuK6htbwuLj0sKSYClIxfGYHt5v_-hjf-VnR8XQqIBq778L0wtPd2j90mLPnVEnEq/exec';
+        this.SHEET_ID = '1FZ3Bskr59Na8Xnh4SCbw4ZZ5kmzdcagF9wMJYixoFzY';
+        this.AUTH_TOKEN = 'vrc_secret_2026_changeme_SECURELY';
+      }
+
+      async initialize() {
+        try {
+          console.log('🔄 Initializing Google Sheets adapter...');
+          // Récupérer les données existantes
+          const response = await fetch(this.SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              action: 'getRawData',
+              auth: this.AUTH_TOKEN
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const result = await response.json();
+          
+          if (result.success && result.data) {
+            // Parser les données du sheet
+            this.parseSheetData(result.data);
+          }
+          
+          this.isReady = true;
+          console.log('✓ Google Sheets initialized');
+        } catch (error) {
+          console.error('Failed to initialize Google Sheets:', error);
+          this.lastError = error.message;
+          throw error;
+        }
+      }
+
+      parseSheetData(rawData) {
+        this.data = { sessions: [], items: [] };
+        // Premier élément est l'en-tête, on ignore
+        if (!Array.isArray(rawData) || rawData.length <= 1) return;
+
+        for (let i = 1; i < rawData.length; i++) {
+          const row = rawData[i];
+          if (!row || row.length === 0) continue;
+
+          const idValue = String(row[0] || '').trim();
+          const gameNameValue = String(row[2] || '').trim();
+          const sessionIdValue = String(row[15] || '').trim();
+          const itemTypeValue = String(row[12] || '').trim();
+          
+          // C'est une session si: id existe ET game_name existe ET type vide (colonne 12)
+          if (idValue && gameNameValue && !itemTypeValue) {
+            this.data.sessions.push({
+              id: idValue,
+              number: parseInt(row[1]) || 0,
+              game_name: gameNameValue,
+              date: String(row[3] || '').trim(),
+              panel_size: parseInt(row[4]) || 0,
+              note_taker: String(row[5] || '').trim(),
+              remarks: String(row[6] || '').trim(),
+              start_time: String(row[7] || '').trim(),
+              start_timestamp: parseInt(row[8]) || 0,
+              is_active: row[9] === 'TRUE' || row[9] === true,
+              duration: String(row[10] || '').trim(),
+              created_at: String(row[11] || new Date().toISOString())
+            });
+          } 
+          // C'est un item si: id existe ET type existe ET session_id existe
+          else if (idValue && itemTypeValue && sessionIdValue) {
+            this.data.items.push({
+              id: idValue,
+              type: itemTypeValue,
+              severity: String(row[13] || 'info').trim(),
+              content: String(row[14] || '').trim(),
+              session_id: sessionIdValue,
+              game_name: String(row[16] || '').trim(),
+              session_date: String(row[17] || '').trim(),
+              elapsed_time: String(row[18] || '').trim(),
+              was_added_during_session: row[19] === 'TRUE' || row[19] === true,
+              created_at: String(row[20] || new Date().toISOString())
+            });
+          }
+        }
+      }
+
+      async create(record) {
+        if (!this.isReady) throw new Error('Storage not initialized');
+        try {
+          // Ajouter le record en mémoire
+          if (record.is_active !== undefined) {
+            this.data.sessions.push(record);
+          } else if (record.session_id !== undefined) {
+            this.data.items.push(record);
+          }
+          
+          // Envoyer à Google Sheets
+          await this.syncToSheet();
+          if (this.onDataChangeCallback) {
+            this.onDataChangeCallback(this.data);
+          }
+        } catch (error) {
+          console.error('Create failed:', error);
+          this.lastError = error.message;
+          throw error;
+        }
+      }
+
+      async update(record) {
+        if (!this.isReady) throw new Error('Storage not initialized');
+        try {
+          if (record.is_active !== undefined) {
+            const idx = this.data.sessions.findIndex(s => s.id === record.id);
+            if (idx >= 0) {
+              this.data.sessions[idx] = record;
+            }
+          } else if (record.session_id !== undefined) {
+            const idx = this.data.items.findIndex(i => i.id === record.id);
+            if (idx >= 0) {
+              this.data.items[idx] = record;
+            }
+          }
+          
+          await this.syncToSheet();
+          if (this.onDataChangeCallback) {
+            this.onDataChangeCallback(this.data);
+          }
+        } catch (error) {
+          console.error('Update failed:', error);
+          this.lastError = error.message;
+          throw error;
+        }
+      }
+
+      async delete(record) {
+        if (!this.isReady) throw new Error('Storage not initialized');
+        try {
+          if (record.is_active !== undefined) {
+            this.data.sessions = this.data.sessions.filter(s => s.id !== record.id);
+          } else if (record.session_id !== undefined) {
+            this.data.items = this.data.items.filter(i => i.id !== record.id);
+          }
+          
+          await this.syncToSheet();
+          if (this.onDataChangeCallback) {
+            this.onDataChangeCallback(this.data);
+          }
+        } catch (error) {
+          console.error('Delete failed:', error);
+          this.lastError = error.message;
+          throw error;
+        }
+      }
+
+      async syncToSheet() {
+        try {
+          const allRows = [];
+          
+          // Headers
+          allRows.push(['id', 'number', 'game_name', 'date', 'panel_size', 'note_taker', 'remarks', 'start_time', 'start_timestamp', 'is_active', 'duration', 'created_at', 'type', 'severity', 'content', 'session_id', 'game_name_item', 'session_date', 'elapsed_time', 'was_added_during_session']);
+          
+          // Sessions
+          this.data.sessions.forEach(s => {
+            allRows.push([
+              s.id, s.number, s.game_name, s.date, s.panel_size, s.note_taker, s.remarks, 
+              s.start_time, s.start_timestamp, s.is_active ? 'TRUE' : 'FALSE', s.duration, s.created_at,
+              '', '', '', '', '', '', '', ''
+            ]);
+          });
+          
+          // Items
+          this.data.items.forEach(i => {
+            allRows.push([
+              i.id, '', '', '', '', '', '', '', '', '',
+              '', '', i.type, i.severity, i.content, i.session_id, i.game_name, i.session_date, i.elapsed_time, i.was_added_during_session ? 'TRUE' : 'FALSE'
+            ]);
+          });
+
+          const response = await fetch(this.SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              action: 'setRawData',
+              auth: this.AUTH_TOKEN,
+              data: JSON.stringify(allRows)
+            })
+          });
+
+          const result = await response.json();
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to sync to sheet');
+          }
+        } catch (error) {
+          console.error('Sync to sheet failed:', error);
+          throw error;
+        }
+      }
+
+      setOnDataChange(callback) {
+        this.onDataChangeCallback = callback;
+      }
+
+      getCurrentData() {
+        return this.data;
+      }
+
+      getLastError() {
+        return this.lastError;
+      }
+    }
+
+    const storage = new GoogleSheetsAdapter();
+
+    class PlaytestManager {
+      constructor() {
+        this.selectedSessionId = null;
+        this.currentFilter = null;
+        this.currentGameFilter = null;
+        this.sessionTimers = {};
+        this.currentItemType = null;
+        this.currentEditItemId = null;
+        this.data = { sessions: [], items: [] };
+        this.initializeApp();
+      }
+
+      async initializeApp() {
+        try {
+          await storage.initialize();
+          this.data = storage.getCurrentData();
+          storage.setOnDataChange((data) => {
+            this.data = data;
+            this.render();
+          });
+          this.render();
+        } catch (error) {
+          // Show connection error screen
+          const app = document.getElementById('app');
+          app.innerHTML = `
+            <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-900 via-red-950 to-slate-900">
+              <div class="text-center">
+                <div class="mb-8">
+                  <i data-lucide="wifi-off" style="width: 64px; height: 64px; margin: 0 auto 16px; color: #ef4444;"></i>
+                  <h1 class="text-4xl font-black text-red-400">Erreur de connexion</h1>
+                  <p class="text-red-300/70 text-sm tracking-widest uppercase mt-2">Google Sheets indisponible</p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-red-800/50 shadow-red-500/20">
+                  <p class="text-red-200 mb-6">Impossible de se connecter à Google Sheets. Vérifiez :</p>
+                  <ul class="text-left text-sm text-red-300 space-y-2 mb-6">
+                    <li>✓ L'URL de déploiement Apps Script</li>
+                    <li>✓ Le token d'authentification</li>
+                    <li>✓ Votre connexion Internet</li>
+                    <li>✓ Les paramètres dans le code (lignes 220-221)</li>
+                  </ul>
+                  <p class="text-xs text-slate-400 italic">Erreur: ${error.message}</p>
+                  <button onclick="location.reload()" class="mt-6 w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 px-4 py-3 rounded-lg text-white font-bold transition shadow-lg shadow-red-500/20">
+                    Réessayer
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+          lucide.createIcons();
+        }
+      }
+
+      loadData() {
+        return this.data;
+      }
+
+      async saveData() {
+        this.render();
+      }
+
+      async addSession(sessionData) {
+        const now = new Date();
+        const sessionToCreate = {
+          id: Date.now().toString(),
+          number: this.data.sessions.length + 1,
+          game_name: sessionData.gameName,
+          date: sessionData.date,
+          panel_size: sessionData.panelSize,
+          note_taker: sessionData.noteTaker,
+          remarks: sessionData.remarks,
+          start_time: now.toLocaleTimeString('fr-FR'),
+          start_timestamp: now.getTime(),
+          is_active: true,
+          duration: '',
+          created_at: new Date().toISOString()
+        };
+
+        await storage.create(sessionToCreate);
+        this.selectedSessionId = sessionToCreate.id;
+        this.startSessionTimer(sessionToCreate.id);
+        return sessionToCreate.id;
+      }
+
+      async addItem(itemData) {
+        const session = this.data.sessions.find(s => s.id === itemData.sessionId);
+        const elapsedTime = session && session.is_active ? this.getSessionElapsedTime(itemData.sessionId) : (session?.duration || '00:00:00');
+        
+        const itemToCreate = {
+          id: Date.now().toString() + Math.random(),
+          type: itemData.type,
+          severity: itemData.severity || 'info',
+          content: itemData.content,
+          session_id: itemData.sessionId,
+          game_name: session?.game_name || '',
+          session_date: session?.date || '',
+          elapsed_time: elapsedTime,
+          was_added_during_session: session?.is_active,
+          created_at: new Date().toISOString()
+        };
+
+        await storage.create(itemToCreate);
+      }
+
+      async updateItem(itemId, updates) {
+        const item = this.data.items.find(i => i.id === itemId);
+        if (item) {
+          const updated = { ...item, ...updates };
+          await storage.update(updated);
+        }
+      }
+
+      async deleteItem(itemId) {
+        const item = this.data.items.find(i => i.id === itemId);
+        if (item) {
+          await storage.delete(item);
+        }
+      }
+
+      async deleteSession(sessionId) {
+        // Delete all associated items
+        const itemsToDelete = this.data.items.filter(i => i.session_id === sessionId);
+        for (const item of itemsToDelete) {
+          await this.deleteItem(item.id);
+        }
+        
+        // Delete session
+        const session = this.data.sessions.find(s => s.id === sessionId);
+        if (session) {
+          await storage.delete(session);
+        }
+        
+        if (this.sessionTimers && this.sessionTimers[sessionId]) {
+          clearInterval(this.sessionTimers[sessionId]);
+          delete this.sessionTimers[sessionId];
+        }
+      }
+
+      // ===== SESSION TIMER =====
+      startSessionTimer(sessionId) {
+        if (!this.sessionTimers) this.sessionTimers = {};
+        
+        const updateElapsed = () => {
+          const session = this.data.sessions.find(s => s.id === sessionId);
+          if (session && session.is_active) {
+            const elapsed = Date.now() - session.start_timestamp;
+            const hours = Math.floor(elapsed / 3600000);
+            const minutes = Math.floor((elapsed % 3600000) / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            const display = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            const elapsedDisplay = document.getElementById('elapsed-time');
+            if (elapsedDisplay) {
+              elapsedDisplay.textContent = display;
+            }
+          }
+        };
+        
+        updateElapsed();
+        this.sessionTimers[sessionId] = setInterval(updateElapsed, 1000);
+      }
+
+      getSessionElapsedTime(sessionId) {
+        const session = this.data.sessions.find(s => s.id === sessionId);
+        if (!session) return '00:00:00';
+        const elapsed = Date.now() - session.start_timestamp;
+        const hours = Math.floor(elapsed / 3600000);
+        const minutes = Math.floor((elapsed % 3600000) / 60000);
+        const seconds = Math.floor((elapsed % 60000) / 1000);
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      }
+
+      async endSession(sessionId) {
+        const session = this.data.sessions.find(s => s.id === sessionId);
+        if (session) {
+          const updatedSession = {
+            ...session,
+            is_active: false,
+            duration: this.getSessionElapsedTime(sessionId)
+          };
+          
+          await storage.update(updatedSession);
+          
+          if (this.sessionTimers && this.sessionTimers[sessionId]) {
+            clearInterval(this.sessionTimers[sessionId]);
+            delete this.sessionTimers[sessionId];
+          }
+        }
+      }
+
+      generateSessionSummary(sessionId) {
+        const session = this.data.sessions.find(s => s.id === sessionId);
+        if (!session) return '';
+        
+        const sessionItems = this.data.items
+          .filter(i => i.session_id === sessionId)
+          .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        
+        if (sessionItems.length === 0) {
+          return `<div>[${session.start_time}] Aucune entrée enregistrée</div>`;
+        }
+
+        return sessionItems.map(item => {
+          const typeEmoji = {
+            bug: '[BUG]',
+            feedback: '[RETOUR]',
+            suggestion: '[SUGGESTION]',
+            task: '[TÂCHE]',
+            debrief: '[DEBRIEF]'
+          }[item.type] || '[?]';
+          
+          const timeDisplay = item.was_added_during_session ? item.elapsed_time : '[Après session]';
+          return `<div>${timeDisplay} ${typeEmoji} ${item.content.substring(0, 60)}...</div>`;
+        }).join('');
+      }
+
+      // ===== EXPORT FUNCTIONS =====
+      exportJSON() {
+        const dataStr = JSON.stringify(this.data, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        this.downloadFile(blob, `VRC_Session_Manager_${new Date().toISOString().split('T')[0]}.json`);
+      }
+
+      exportCSV() {
+        let csv = 'Type,Heure,Sévérité,Contenu,Temps écoulé\n';
+        this.data.items.forEach(item => {
+          const session = this.data.sessions.find(s => s.id === item.sessionId);
+          csv += `"${item.type}","${item.time}","${item.severity || ''}","${item.content}","${item.elapsedTime}"\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        this.downloadFile(blob, `VRC_Session_Manager_${new Date().toISOString().split('T')[0]}.csv`);
+      }
+
+      exportMarkdown() {
+        let md = `# Rapport de Session VR\n\n`;
+        md += `Généré: ${new Date().toLocaleString('fr-FR')}\n\n`;
+        
+        this.data.sessions.forEach(session => {
+          md += `## Session ${session.number} - ${session.date}\n`;
+          md += `- **Heure de début**: ${session.startTime}\n`;
+          md += `- **Durée totale**: ${session.duration}\n`;
+          md += `- **Panel**: ${session.panelSize} testeurs\n`;
+          md += `- **Preneur de notes**: ${session.noteTaker}\n\n`;
+
+          const sessionItems = this.data.items.filter(i => i.sessionId === session.id);
+          if (sessionItems.length === 0) {
+            md += `Aucune entrée enregistrée.\n\n`;
+            return;
+          }
+
+          ['bug', 'feedback', 'suggestion', 'debrief', 'task'].forEach(type => {
+            const typeItems = sessionItems.filter(i => i.type === type);
+            if (typeItems.length > 0) {
+              const typeLabel = {
+                bug: 'Bug',
+                feedback: 'Retours',
+                suggestion: 'Suggestions',
+                task: 'Tâches',
+                debrief: 'Débriefings'
+              }[type];
+              md += `### ${typeLabel}\n`;
+              typeItems.forEach(item => {
+                md += `- **${item.content}** [${item.time}]\n`;
+              });
+              md += '\n';
+            }
+          });
+        });
+
+        const blob = new Blob([md], { type: 'text/markdown' });
+        this.downloadFile(blob, `playtest_export_${new Date().toISOString().split('T')[0]}.md`);
+      }
+
+      downloadFile(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      importJSON() {
+        const fileInput = document.getElementById('input-import-file');
+        const file = fileInput?.files?.[0];
+        const statusDiv = document.getElementById('import-status');
+
+        if (!file) {
+          statusDiv.textContent = 'Veuillez sélectionner un fichier';
+          statusDiv.className = 'text-sm text-red-400';
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onerror = () => {
+          statusDiv.textContent = `Erreur: Impossible de lire le fichier`;
+          statusDiv.className = 'text-sm text-red-400';
+        };
+
+        reader.onload = (e) => {
+          try {
+            const content = e.target?.result;
+            if (typeof content !== 'string') {
+              throw new Error('Contenu de fichier invalide');
+            }
+
+            const importedData = JSON.parse(content);
+            
+            // Validate structure
+            if (!importedData || typeof importedData !== 'object') {
+              throw new Error('Format JSON invalide');
+            }
+
+            if (!Array.isArray(importedData.sessions) || !Array.isArray(importedData.items)) {
+              throw new Error('Format de fichier invalide - sessions et items doivent être des listes');
+            }
+
+            // Create mapping of old session IDs to new IDs
+            const sessionIdMap = {};
+            const newSessions = [];
+
+            importedData.sessions.forEach((session, index) => {
+              const newSessionId = Date.now().toString() + Math.random();
+              sessionIdMap[session.id] = newSessionId;
+              
+              const newSession = {
+                ...session,
+                id: newSessionId,
+                start_timestamp: session.start_timestamp ? new Date(session.start_timestamp).getTime() : Date.now(),
+                created_at: session.created_at || new Date().toISOString()
+              };
+              newSessions.push(newSession);
+            });
+
+            // Map items to new session IDs
+            const newItems = importedData.items.map(item => ({
+              ...item,
+              id: Date.now().toString() + Math.random(),
+              session_id: sessionIdMap[item.session_id] || newSessions[0]?.id,
+              created_at: item.created_at || new Date().toISOString()
+            }));
+
+            // Add to storage via adapter
+            (async () => {
+              for (const session of newSessions) {
+                await storage.create(session);
+              }
+              for (const item of newItems) {
+                await storage.create(item);
+              }
+
+              statusDiv.textContent = `✓ ${newSessions.length} session(s) et ${newItems.length} entrée(s) importées`;
+              statusDiv.className = 'text-sm text-green-400';
+
+              setTimeout(() => {
+                this.hideModal('modal-import');
+                fileInput.value = '';
+                statusDiv.textContent = '';
+              }, 2000);
+            })();
+          } catch (error) {
+            statusDiv.textContent = `Erreur: ${error.message}`;
+            statusDiv.className = 'text-sm text-red-400';
+          }
+        };
+
+        reader.readAsText(file, 'UTF-8');
+      }
+
+      // ===== STATISTICS =====
+      getStats(gameFilter = null) {
+        let items = this.data.items;
+        let sessions = this.data.sessions;
+        
+        if (gameFilter) {
+          sessions = sessions.filter(s => s.game_name === gameFilter);
+          items = items.filter(i => sessions.some(s => s.id === i.session_id));
+        }
+        
+        const bugs = items.filter(i => i.type === 'bug');
+        const openBugs = bugs.filter(i => i.status === 'open');
+        const allCritical = items.filter(i => i.severity === 'critical');
+        const allHigh = items.filter(i => i.severity === 'high');
+        const allMedium = items.filter(i => i.severity === 'medium');
+        const allLow = items.filter(i => i.severity === 'low');
+        const allInfo = items.filter(i => i.severity === 'info');
+        
+        return {
+          totalSessions: sessions.length,
+          totalItems: items.length,
+          totalBugs: bugs.length,
+          openBugs: openBugs.length,
+          criticalBugs: allCritical.length,
+          highBugs: allHigh.length,
+          mediumBugs: allMedium.length,
+          lowBugs: allLow.length,
+          infoBugs: allInfo.length
+        };
+      }
+
+      getAvailableGames() {
+        const games = new Set();
+        this.data.sessions.forEach(s => {
+          if (s.game_name) games.add(s.game_name);
+        });
+        return Array.from(games).sort();
+      }
+
+      render() {
+        if (!this.data) this.data = { sessions: [], items: [] };
+        const app = document.getElementById('app');
+
+        // Show auth screen if not authenticated
+        if (!authManager.isAuthenticated) {
+          app.innerHTML = `
+              <div class="text-center">
+                <div class="mb-8">
+                  <i data-lucide="lock" style="width: 64px; height: 64px; margin: 0 auto 16px; color: #06b6d4;"></i>
+                  <h1 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400">Virtual Reality Center</h1>
+                  <p class="text-purple-300/70 text-sm tracking-widest uppercase mt-2">Accès sécurisé</p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
+                  <h2 class="text-2xl font-bold text-white mb-6">Entrez le code PIN</h2>
+                  <div class="space-y-4">
+                    <input 
+                      type="password" 
+                      id="auth-pin-input" 
+                      placeholder="••••" 
+                      maxlength="4"
+                      class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white text-center text-3xl tracking-widest focus:outline-none transition"
+                    >
+                    <button id="btn-auth-submit" class="w-full bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 px-4 py-3 rounded-lg text-white font-bold transition shadow-lg shadow-purple-500/20">
+                      Accéder
+                    </button>
+                  </div>
+                  <div id="auth-error" class="text-red-400 text-sm mt-4 hidden">Code PIN incorrect</div>
+                </div>
+              </div>
+            </div>
+          `;
+          
+          this.attachAuthListeners();
+          lucide.createIcons();
+          return;
+        }
+        
+        app.innerHTML = `
+          <div class="flex h-full flex-col bg-slate-900 text-slate-100">
+            ${this.renderHeader()}
+            <div class="flex flex-1 overflow-hidden">
+              ${this.renderSidebar()}
+              ${this.renderMain()}
+            </div>
+            ${this.renderModals()}
+          </div>
+        `;
+        this.attachEventListeners();
+        lucide.createIcons();
+      }
+
+      attachAuthListeners() {
+        const pinInput = document.getElementById('auth-pin-input');
+        const submitBtn = document.getElementById('btn-auth-submit');
+        const errorDiv = document.getElementById('auth-error');
+
+        pinInput?.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            this.attemptAuth(pinInput.value, errorDiv);
+          }
+        });
+
+        submitBtn?.addEventListener('click', () => {
+          this.attemptAuth(pinInput.value, errorDiv);
+        });
+      }
+
+      attemptAuth(pin, errorDiv) {
+        if (authManager.authenticate(pin)) {
+          this.render();
+        } else {
+          errorDiv?.classList.remove('hidden');
+          setTimeout(() => {
+            errorDiv?.classList.add('hidden');
+          }, 2000);
+        }
+      }
+
+      getAvailableGames() {
+        const games = new Set();
+        this.data.sessions.forEach(s => {
+          if (s.game_name) games.add(s.game_name);
+        });
+        return Array.from(games).sort();
+      }
+
+      renderHeader() {
+        const stats = this.getStats(this.currentGameFilter);
+        const hasActiveSession = this.data.sessions.some(s => s.isActive);
+        return `
+          <header class="bg-gradient-to-r from-slate-950 via-purple-950 to-slate-950 border-b border-purple-800/50 px-6 py-5">
+            <div class="flex justify-between items-center">
+              <div>
+                <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400">Virtual Reality Center</h1>
+                <p class="text-purple-300/70 text-xs tracking-widest uppercase mt-1">Gestionnaire de Sessions & Suivi des bugs</p>
+              </div>
+              <div class="flex gap-6 items-center">
+                <div class="grid grid-cols-7 gap-4">
+                  <div class="text-center cursor-pointer hover:opacity-80 transition" data-filter="all">
+                    <div class="text-2xl font-black text-cyan-400">${stats.totalSessions}</div>
+                    <div class="text-xs text-slate-400 uppercase tracking-wider">Sessions</div>
+                  </div>
+                  <div class="text-center cursor-pointer hover:opacity-80 transition" data-filter="all">
+                    <div class="text-2xl font-black text-purple-400">${stats.totalItems}</div>
+                    <div class="text-xs text-slate-400 uppercase tracking-wider">Entrées</div>
+                  </div>
+                  <div class="text-center cursor-pointer hover:opacity-80 transition" data-filter="critical">
+                    <div class="text-2xl font-black text-red-400">${stats.criticalBugs}</div>
+                    <div class="text-xs text-slate-400 uppercase tracking-wider">Critiques</div>
+                  </div>
+                  <div class="text-center cursor-pointer hover:opacity-80 transition" data-filter="high">
+                    <div class="text-2xl font-black text-orange-400">${stats.highBugs}</div>
+                    <div class="text-xs text-slate-400 uppercase tracking-wider">Élevés</div>
+                  </div>
+                  <div class="text-center cursor-pointer hover:opacity-80 transition" data-filter="medium">
+                    <div class="text-2xl font-black text-yellow-400">${stats.mediumBugs}</div>
+                    <div class="text-xs text-slate-400 uppercase tracking-wider">Moyens</div>
+                  </div>
+                  <div class="text-center cursor-pointer hover:opacity-80 transition" data-filter="low">
+                    <div class="text-2xl font-black text-blue-400">${stats.lowBugs}</div>
+                    <div class="text-xs text-slate-400 uppercase tracking-wider">Faibles</div>
+                  </div>
+                  <div class="text-center cursor-pointer hover:opacity-80 transition" data-filter="info">
+                    <div class="text-2xl font-black text-slate-400">${stats.infoBugs}</div>
+                    <div class="text-xs text-slate-400 uppercase tracking-wider">Info</div>
+                  </div>
+                </div>
+                <button id="btn-settings" class="bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 px-5 py-2.5 rounded-lg text-white text-sm font-bold transition shadow-lg shadow-purple-500/20 flex items-center gap-2">
+                  <i data-lucide="settings" style="width: 18px; height: 18px;"></i>
+                  Paramètres
+                </button>
+                ${!hasActiveSession ? `
+                  <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                ` : `
+                  <div class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
+                `}
+            </div>
+          </header>
+        `;
+      }
+
+      renderSidebar() {
+        const sessions = this.data.sessions;
+        const hasActiveSession = this.data.sessions.some(s => s.is_active);
+        const activeSession = this.data.sessions.find(s => s.is_active);
+        const selectedSessionId = this.selectedSessionId || activeSession?.id || (sessions.length > 0 ? sessions[0].id : null);
+        
+        return `
+          <aside class="w-72 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-r border-purple-900/30 overflow-y-auto">
+            <div class="p-6">
+              ${!hasActiveSession ? `
+                <button id="btn-new-session" class="w-full bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 px-4 py-3 rounded-lg text-white font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20">
+                  <i data-lucide="play" style="width: 18px; height: 18px;"></i>
+                  Commencer Session
+                </button>
+              ` : `
+                <div class="w-full bg-red-900/20 border border-red-700/30 px-4 py-3 rounded-lg text-red-300 font-bold text-center">
+                  Session en cours...
+                </div>
+              `}
+            </div>
+            <div class="px-4 pb-6">
+              <h3 class="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-4 uppercase tracking-widest">Sessions</h3>
+              <div class="space-y-3">
+                ${sessions.length === 0 ? '<p class="text-xs text-slate-500 italic">Aucune session</p>' : ''}
+                ${[...sessions].reverse().map((s, index) => {
+                  const isSelected = s.id === selectedSessionId;
+                  const isLocked = hasActiveSession && !s.is_active;
+                  return `
+                    <div class="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border ${isSelected ? 'border-purple-500 shadow-lg shadow-purple-500/20' : 'border-purple-800/30 hover:border-purple-700/50'} rounded-lg p-4 ${isLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} transition-all hover:shadow-lg hover:shadow-purple-500/10 session-item ${isLocked ? 'locked-session' : ''}" data-session-id="${s.id}" ${isLocked ? 'style="pointer-events: none;"' : ''}>
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="flex-1">
+                          <div class="text-sm font-bold text-cyan-300">Session ${s.number}</div>
+                          <div class="text-xs text-purple-300 font-semibold mt-1">${s.game_name || 'N/A'}</div>
+                          <div class="text-xs text-slate-500 mt-2">${s.date || 'N/A'}</div>
+                          <div class="text-xs text-slate-600 mt-2 flex gap-2">
+                            <span>${s.panel_size || 0} joueurs</span>
+                            <span>${s.duration || '00:00:00'}</span>
+                          </div>
+                          ${!s.is_active ? '<div class="text-xs text-slate-500 mt-2 italic">Session terminée</div>' : '<div class="text-xs text-green-400 mt-2 font-semibold animate-pulse">▶ En cours...</div>'}
+                        </div>
+                        ${s.is_active ? '<div class="text-2xl text-green-400">●</div>' : ''}
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </aside>
+        `;
+      }
+
+      renderMain() {
+        const sessions = this.data.sessions;
+        
+        // Mode filtré par jeu : afficher les sessions filtrées avec leurs entrées
+        if (this.currentGameFilter) {
+          return this.renderGameFilteredView();
+        }
+        
+        // Mode filtré par sévérité : afficher les entrées avec sévérité filtrée
+        if (this.currentFilter) {
+          return this.renderFilteredView();
+        }
+        
+        if (sessions.length === 0) {
+          return `
+            <main class="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8">
+              <div class="text-center flex-1 flex items-center justify-center">
+                <div>
+                  <i data-lucide="sparkles" style="width: 64px; height: 64px; margin: 0 auto 16px; color: #06b6d4;"></i>
+                  <p class="text-slate-300 text-lg font-semibold">Aucune session</p>
+                  <p class="text-slate-500 text-sm mt-2">Cliquez sur "Commencer Session" pour démarrer</p>
+                </div>
+              </div>
+              <div class="text-center text-xs text-slate-500 mt-4 pt-4 border-t border-slate-700/30">
+                <p>VRC Session Manager • Version ${VERSION}</p>
+              </div>
+            </main>
+          `;
+        }
+
+        // Auto-select active session first, otherwise select last session
+        const activeSession = sessions.find(s => s.is_active);
+        const selectedSessionId = this.selectedSessionId || activeSession?.id || sessions[sessions.length - 1].id;
+        const selectedSession = sessions.find(s => s.id === selectedSessionId) || sessions[sessions.length - 1];
+        const sessionItems = this.data.items.filter(i => i.session_id === selectedSession.id);
+        const isSessionActive = selectedSession.is_active;
+        
+        return `
+          <main class="flex-1 overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8 flex flex-col">
+            <div class="max-w-5xl mx-auto flex-1">
+              <div class="flex justify-between items-start mb-8">
+                <div>
+                  <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-3">Session ${selectedSession.number || 1} - ${selectedSession.game_name || 'N/A'}</h2>
+                  <div class="text-slate-400 space-y-1.5 text-sm">
+                    <p>Début: <span class="text-cyan-300">${selectedSession.date || 'N/A'}</span></p>
+                    ${selectedSession.start_time ? `<p>Heure: <span class="text-cyan-300">${selectedSession.start_time}</span></p>` : ''}
+                    ${isSessionActive ? `<p>Durée écoulée: <span class="text-purple-300" id="elapsed-time">00:00:00</span></p>` : `<p>Durée totale: <span class="text-purple-300">${selectedSession.duration || '00:00:00'}</span></p>`}
+                    <p>Panel: <span class="text-purple-300">${selectedSession.panel_size || 0} joueurs</span></p>
+                    <p>Preneur de notes - GM: <span class="text-cyan-300">${selectedSession.note_taker || 'N/A'}</span></p>
+                    ${selectedSession.remarks ? `<p>Remarques: <span class="text-purple-300">${selectedSession.remarks}</span></p>` : ''}
+                  </div>
+                </div>
+                <div class="flex flex-col gap-3">
+                  ${!isSessionActive ? `
+                    <button id="btn-delete-session" class="bg-red-900/20 hover:bg-red-900/40 border border-red-700/30 hover:border-red-600/50 px-4 py-2 rounded-lg text-red-300 text-sm font-semibold transition">
+                      <i data-lucide="trash-2" style="width: 18px; height: 18px; display: inline; margin-right: 6px;"></i> Supprimer
+                    </button>
+                  ` : `
+                    <button id="btn-stop-session" class="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 px-4 py-2 rounded-lg text-white text-sm font-semibold transition">
+                      <i data-lucide="stop-circle" style="width: 18px; height: 18px; display: inline; margin-right: 6px;"></i> Terminer
+                    </button>
+                  `}
+                </div>
+              </div>
+
+              ${isSessionActive ? `
+                <div class="grid grid-cols-2 gap-3 mb-8">
+                  <button class="add-item-btn bg-gradient-to-r from-red-900/40 to-red-800/40 border border-red-700/30 hover:border-red-600/50 hover:from-red-900/60 hover:to-red-800/60 px-4 py-3 rounded-lg text-red-300 text-sm font-bold transition" data-type="bug">Bug</button>
+                  <button class="add-item-btn bg-gradient-to-r from-blue-900/40 to-blue-800/40 border border-blue-700/30 hover:border-blue-600/50 hover:from-blue-900/60 hover:to-blue-800/60 px-4 py-3 rounded-lg text-blue-300 text-sm font-bold transition" data-type="feedback">Retour/Infos</button>
+                  <button class="add-item-btn bg-gradient-to-r from-green-900/40 to-green-800/40 border border-green-700/30 hover:border-green-600/50 hover:from-green-900/60 hover:to-green-800/60 px-4 py-3 rounded-lg text-green-300 text-sm font-bold transition" data-type="suggestion">Suggestion</button>
+                  <button class="add-item-btn bg-gradient-to-r from-purple-900/40 to-purple-800/40 border border-purple-700/30 hover:border-purple-600/50 hover:from-purple-900/60 hover:to-purple-800/60 px-4 py-3 rounded-lg text-purple-300 text-sm font-bold transition" data-type="task">Tâche</button>
+                </div>
+              ` : `
+                <div class="flex gap-3 mb-8">
+                  <button id="btn-add-item-after" class="flex-1 bg-gradient-to-r from-cyan-900/40 to-cyan-800/40 border border-cyan-700/30 hover:border-cyan-600/50 hover:from-cyan-900/60 hover:to-cyan-800/60 px-4 py-3 rounded-lg text-cyan-300 text-sm font-bold transition">
+                    <i data-lucide="plus" style="width: 16px; height: 16px; display: inline; margin-right: 6px;"></i> Ajouter une entrée
+                  </button>
+                </div>
+              `}
+
+              ${['bug', 'feedback', 'suggestion', 'task', 'debrief'].map(type => {
+                const typeItems = sessionItems.filter(i => i.type === type);
+                if (typeItems.length === 0) return '';
+                
+                const typeLabel = {
+                  bug: 'Bug',
+                  feedback: 'Retours',
+                  suggestion: 'Suggestions',
+                  task: 'Tâches',
+                  debrief: 'Débriefings'
+                }[type];
+
+                return `
+                  <div class="mb-8">
+                    <h3 class="text-lg font-bold text-white mb-4 uppercase tracking-wider">${typeLabel}</h3>
+                    <div class="space-y-3">
+                      ${typeItems.map(item => `
+                        <div style="border-left: 4px solid ${this.getSeverityHexColor(item.severity)};" class="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-5 hover:shadow-lg transition">
+                          <div class="flex justify-between items-start gap-4">
+                            <div class="flex-1">
+                              <p class="text-white font-semibold text-base">${item.content || 'N/A'}</p>
+                              <div class="text-xs text-slate-400 mt-3 flex gap-3">
+                                ${item.was_added_during_session ? `<span>Heure: <span class="text-cyan-300">${item.elapsed_time || '00:00:00'}</span></span>` : `<span class="text-slate-500 italic">Ajoutée après la session</span>`}
+                              </div>
+                            </div>
+                            <div class="flex gap-2">
+                              <button class="edit-item-btn bg-purple-900/20 hover:bg-purple-900/40 border border-purple-700/30 hover:border-purple-600/50 text-purple-300 px-3 py-1.5 rounded text-xs font-semibold transition" data-item-id="${item.id}">
+                                <i data-lucide="edit-2" style="width: 14px; height: 14px; display: inline; margin-right: 4px;"></i> Modifier
+                              </button>
+                              <button class="delete-item-btn bg-red-900/20 hover:bg-red-900/40 border border-red-700/30 hover:border-red-600/50 text-red-300 p-1.5 rounded transition" data-item-id="${item.id}">
+                                <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+            <div class="max-w-5xl mx-auto w-full">
+              <div class="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-6 mt-12">
+                <h3 class="text-lg font-bold text-white mb-4 uppercase tracking-wider text-center">Résumé de la Session - Journal</h3>
+                <div class="space-y-2 text-sm text-slate-300">
+                  ${this.generateSessionSummary(selectedSession.id) || '<div class="text-center text-slate-500 italic">Aucune entrée enregistrée</div>'}
+                </div>
+              </div>
+            </div>
+
+            <div class="text-center text-xs text-slate-500 mt-12 pt-4 border-t border-slate-700/30">
+              <p>VRC Session Manager • Version ${VERSION}</p>
+            </div>
+          </main>
+        `;
+      }
+
+      renderFilteredView() {
+        const filterLabel = {
+          critical: 'Critiques',
+          high: 'Élevés',
+          medium: 'Moyens',
+          low: 'Faibles',
+          info: 'Info'
+        }[this.currentFilter] || 'Entrées';
+
+        const filteredItems = this.data.items.filter(i => i.severity === this.currentFilter);
+
+        // Grouper par session
+        const itemsBySession = {};
+        filteredItems.forEach(item => {
+          if (!itemsBySession[item.session_id]) {
+            itemsBySession[item.session_id] = [];
+          }
+          itemsBySession[item.session_id].push(item);
+        });
+
+        const severityColor = {
+          critical: '#ef4444',
+          high: '#f97316',
+          medium: '#eab308',
+          low: '#3b82f6',
+          info: '#64748b'
+        }[this.currentFilter] || '#64748b';
+
+        return `
+          <main class="flex-1 overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8 flex flex-col">
+            <div class="max-w-5xl mx-auto flex-1 w-full">
+              <div class="flex justify-between items-center mb-8">
+                <div>
+                  <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">Entrées ${filterLabel}</h2>
+                  ${this.currentGameFilter ? `<p class="text-slate-400 mt-2 text-lg">${this.currentGameFilter}</p>` : ''}
+                </div>
+                <button id="btn-close-filter" class="bg-slate-700/50 hover:bg-slate-700 border border-slate-600/50 px-4 py-2 rounded-lg text-slate-300 text-sm font-semibold transition">
+                  <i data-lucide="x" style="width: 18px; height: 18px; display: inline; margin-right: 6px;"></i> Fermer
+                </button>
+              </div>
+
+              ${filteredItems.length === 0 ? `
+                <div class="text-center py-12">
+                  <p class="text-slate-400 text-lg">Aucune entrée ${filterLabel.toLowerCase()}</p>
+                </div>
+              ` : `
+                ${Object.entries(itemsBySession).map(([sessionId, items]) => {
+                  const session = this.data.sessions.find(s => s.id === sessionId);
+                  if (!session) return '';
+                  
+                  return `
+                    <div class="mb-12">
+                      <h3 class="text-2xl font-bold text-cyan-400 mb-6 pb-3 border-b border-purple-800/50">Session ${session.number} - ${session.game_name}</h3>
+                      <div class="space-y-3">
+                        ${items.map(item => `
+                          <div style="border-left: 4px solid ${severityColor};" class="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-5 hover:shadow-lg transition">
+                            <div class="flex justify-between items-start gap-4">
+                              <div class="flex-1">
+                                <p class="text-white font-semibold text-base">${item.content}</p>
+                                <div class="text-xs text-slate-400 mt-3 flex gap-4">
+                                  <span>Type: <span class="text-purple-300 font-semibold">${({bug: 'Bug', feedback: 'Retour', suggestion: 'Suggestion', task: 'Tâche', debrief: 'Débrief'}[item.type] || item.type)}</span></span>
+                                  ${item.wasAddedDuringSession ? `<span>Heure: <span class="text-cyan-300">${item.time}</span></span>` : `<span class="text-slate-500 italic">Après session</span>`}
+                                </div>
+                              </div>
+                              <div class="flex gap-2">
+                                <button class="edit-item-btn bg-purple-900/20 hover:bg-purple-900/40 border border-purple-700/30 hover:border-purple-600/50 text-purple-300 px-3 py-1.5 rounded text-xs font-semibold transition" data-item-id="${item.id}">
+                                  <i data-lucide="edit-2" style="width: 14px; height: 14px; display: inline; margin-right: 4px;"></i> Modifier
+                                </button>
+                                <button class="delete-item-btn bg-red-900/20 hover:bg-red-900/40 border border-red-700/30 hover:border-red-600/50 text-red-300 p-1.5 rounded transition" data-item-id="${item.id}">
+                                  <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        `).join('')}
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              `}
+            </div>
+
+            <div class="text-center text-xs text-slate-500 mt-12 pt-4 border-t border-slate-700/30">
+              <p>VRC Session Manager • Version ${VERSION}</p>
+            </div>
+          </main>
+        `;
+      }
+
+      renderGameFilteredView() {
+        const filteredSessions = this.data.sessions.filter(s => s.game_name === this.currentGameFilter);
+        
+        // Collecter tous les items de ce jeu et les trier par sévérité
+        const allGameItems = [];
+        const severityOrder = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+        
+        filteredSessions.forEach(session => {
+          this.data.items
+            .filter(i => i.session_id === session.id)
+            .forEach(item => {
+              allGameItems.push({ ...item, sessionNumber: session.number });
+            });
+        });
+        
+        allGameItems.sort((a, b) => {
+          const aSeverity = severityOrder[a.severity] ?? 5;
+          const bSeverity = severityOrder[b.severity] ?? 5;
+          return aSeverity - bSeverity;
+        });
+
+        return `
+          <main class="flex-1 overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8 flex flex-col">
+            <div class="max-w-5xl mx-auto flex-1 w-full">
+              <div class="flex justify-between items-center mb-8">
+                <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">${this.currentGameFilter}</h2>
+                <button id="btn-close-game-filter" class="bg-slate-700/50 hover:bg-slate-700 border border-slate-600/50 px-4 py-2 rounded-lg text-slate-300 text-sm font-semibold transition">
+                  <i data-lucide="x" style="width: 18px; height: 18px; display: inline; margin-right: 6px;"></i> Fermer
+                </button>
+              </div>
+
+              ${allGameItems.length === 0 ? `
+                <div class="text-center py-12">
+                  <p class="text-slate-400 text-lg">Aucune entrée pour ce jeu</p>
+                </div>
+              ` : `
+                <div class="space-y-3">
+                  ${allGameItems.map(item => `
+                    <div style="border-left: 4px solid ${this.getSeverityHexColor(item.severity)};" class="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-5 hover:shadow-lg transition">
+                      <div class="flex justify-between items-start gap-4">
+                        <div class="flex-1">
+                          <div class="flex items-start gap-3">
+                            <p class="text-white font-semibold text-base flex-1">${item.content}</p>
+                            <span class="text-xs text-slate-500 bg-slate-700/50 px-2 py-1 rounded whitespace-nowrap">S${item.sessionNumber}</span>
+                          </div>
+                          <div class="text-xs text-slate-400 mt-3 flex gap-4">
+                            <span>Type: <span class="text-purple-300 font-semibold">${({bug: 'Bug', feedback: 'Retour', suggestion: 'Suggestion', task: 'Tâche', debrief: 'Débrief'}[item.type] || item.type)}</span></span>
+                            <span>Sévérité: <span class="text-purple-300 font-semibold">${({critical: 'Critique', high: 'Élevé', medium: 'Moyen', low: 'Faible', info: 'Info'}[item.severity] || item.severity)}</span></span>
+                          </div>
+                        </div>
+                        <div class="flex gap-2">
+                          <button class="edit-item-btn bg-purple-900/20 hover:bg-purple-900/40 border border-purple-700/30 hover:border-purple-600/50 text-purple-300 px-3 py-1.5 rounded text-xs font-semibold transition" data-item-id="${item.id}">
+                            <i data-lucide="edit-2" style="width: 14px; height: 14px; display: inline; margin-right: 4px;"></i> Modifier
+                          </button>
+                          <button class="delete-item-btn bg-red-900/20 hover:bg-red-900/40 border border-red-700/30 hover:border-red-600/50 text-red-300 p-1.5 rounded transition" data-item-id="${item.id}">
+                            <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              `}
+            </div>
+
+            <div class="text-center text-xs text-slate-500 mt-12 pt-4 border-t border-slate-700/30">
+              <p>VRC Session Manager • Version ${VERSION}</p>
+            </div>
+          </main>
+        `;
+      }
+
+      getSeverityColor(severity) {
+        switch(severity) {
+          case 'critical': return 'border-red-500';
+          case 'high': return 'border-orange-500';
+          case 'medium': return 'border-yellow-500';
+          case 'low': return 'border-blue-500';
+          default: return 'border-slate-500';
+        }
+      }
+
+      getSeverityHexColor(severity) {
+        switch(severity) {
+          case 'critical': return '#ef4444';
+          case 'high': return '#f97316';
+          case 'medium': return '#eab308';
+          case 'low': return '#3b82f6';
+          default: return '#64748b';
+        }
+      }
+
+      renderModals() {
+        return `
+          <div id="modal-overlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"></div>
+          <div id="modal-new-session" class="hidden fixed inset-0 flex items-center justify-center z-50">
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
+              <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-6">Nouvelle Session de jeu</h3>
+              <div class="space-y-4">
+                <div>
+                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Nom du jeu</label>
+                  <select id="input-session-game-name" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition">
+                    <option value="">-- Sélectionner un jeu --</option>
+                    <option value="Bataille de la Planta">Bataille de la Planta</option>
+                    <option value="Le serviteur chap. 1">Le serviteur chap. 1</option>
+                    <option value="Le serviteur chap. 2">Le serviteur chap. 2</option>
+                    <option value="SchoolCrafter - HEP">SchoolCrafter - HEP</option>
+                    <option value="custom">Autre (personnalisé)</option>
+                  </select>
+                  <input type="text" id="input-session-game-name-custom" placeholder="Entrez le nom personnalisé du jeu" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition mt-2 hidden">
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Date de la session</label>
+                  <input type="date" id="input-session-date" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition">
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Nombre de joueurs</label>
+                  <input type="number" id="input-session-panel" placeholder="Nombre de joueurs" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition">
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Preneur de notes - GM</label>
+                  <input type="text" id="input-session-note-taker" placeholder="Votre nom" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition">
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Remarques</label>
+                  <textarea id="input-session-remarks" placeholder="Notes générales sur la session..." class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition h-20"></textarea>
+                </div>
+              </div>
+              <div class="flex gap-3 mt-8">
+                <button id="btn-cancel-session" class="flex-1 bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/50 text-slate-300 px-4 py-3 rounded-lg font-semibold transition">Annuler</button>
+                <button id="btn-save-session" class="flex-1 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white px-4 py-3 rounded-lg font-bold transition shadow-lg shadow-purple-500/20">Démarrer</button>
+              </div>
+            </div>
+          </div>
+          <div id="modal-add-item" class="hidden fixed inset-0 flex items-center justify-center z-50">
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
+              <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-6" id="modal-item-title">Ajouter une entrée</h3>
+              <div class="space-y-4">
+                <div>
+                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Description</label>
+                  <textarea id="input-item-content" placeholder="Décrivez le problème, le retour ou la tâche..." class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition h-24"></textarea>
+                </div>
+
+                <div>
+                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Sévérité</label>
+                  <select id="input-item-severity" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition font-semibold">
+                    <option value="info">Info</option>
+                    <option value="low">Faible</option>
+                    <option value="medium">Moyen</option>
+                    <option value="high">Élevé</option>
+                    <option value="critical">Critique</option>
+                  </select>
+                </div>
+              </div>
+              <div class="flex gap-3 mt-8">
+                <button id="btn-cancel-item" class="flex-1 bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/50 text-slate-300 px-4 py-3 rounded-lg font-semibold transition">Annuler</button>
+                <button id="btn-save-item" class="flex-1 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white px-4 py-3 rounded-lg font-bold transition shadow-lg shadow-purple-500/20">Ajouter</button>
+              </div>
+            </div>
+          </div>
+          <div id="modal-edit-item" class="hidden fixed inset-0 flex items-center justify-center z-50">
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
+              <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-6">Modifier l'entrée</h3>
+              <div class="space-y-4">
+                <div>
+                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Description</label>
+                  <textarea id="edit-item-content" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition h-24"></textarea>
+                </div>
+
+                <div>
+                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Sévérité</label>
+                  <select id="edit-item-severity" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition font-semibold">
+                    <option value="info">Info</option>
+                    <option value="low">Faible</option>
+                    <option value="medium">Moyen</option>
+                    <option value="high">Élevé</option>
+                    <option value="critical">Critique</option>
+                  </select>
+                </div>
+              </div>
+              <div class="flex gap-3 mt-8">
+                <button id="btn-cancel-edit-item" class="flex-1 bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/50 text-slate-300 px-4 py-3 rounded-lg font-semibold transition">Annuler</button>
+                <button id="btn-save-edit-item" class="flex-1 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white px-4 py-3 rounded-lg font-bold transition shadow-lg shadow-purple-500/20">Sauvegarder</button>
+              </div>
+            </div>
+          </div>
+          <div id="modal-delete-confirmation" class="hidden fixed inset-0 flex items-center justify-center z-50">
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-red-800/50 shadow-red-500/20">
+              <h3 class="text-2xl font-black text-red-400 mb-4">Supprimer la session ?</h3>
+              <p class="text-slate-300 mb-6">Êtes-vous sûr de vouloir supprimer cette session ? Cette action est irréversible et supprimera toutes les entrées associées.</p>
+              <div class="flex gap-3 mt-8">
+                <button id="btn-cancel-delete" class="flex-1 bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/50 text-slate-300 px-4 py-3 rounded-lg font-semibold transition">Annuler</button>
+                <button id="btn-confirm-delete" class="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white px-4 py-3 rounded-lg font-bold transition shadow-lg shadow-red-500/20">Supprimer</button>
+              </div>
+            </div>
+          </div>
+          <div id="modal-settings" class="hidden fixed inset-0 flex items-center justify-center z-50">
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-full max-w-2xl border border-purple-800/50 shadow-purple-500/20 max-h-[90vh] overflow-y-auto">
+              <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-8">Paramètres</h3>
+              <div class="space-y-4">
+                <div>
+                  <h4 class="text-lg font-bold text-green-400 mb-3">Filtrer par Jeu</h4>
+                  <div class="space-y-2">
+                    <button id="btn-filter-all-games" class="w-full bg-gradient-to-r from-green-900/50 to-green-800/50 border border-green-700/50 hover:border-green-600/50 hover:from-green-900/70 hover:to-green-800/70 text-green-300 px-4 py-3 rounded-lg transition text-left font-semibold text-sm">
+                      <span class="text-white">Tous les jeux</span>
+                    </button>
+                    <div id="settings-games-list" class="space-y-2">
+                      ${this.getAvailableGames().map(game => `
+                        <button class="settings-game-filter-btn w-full text-left bg-gradient-to-r from-green-900/30 to-green-800/30 border border-green-700/30 hover:border-green-600/50 hover:from-green-900/50 hover:to-green-800/50 px-4 py-3 rounded-lg text-green-300 text-sm font-semibold transition" data-game="${game}">
+                          ${game}
+                        </button>
+                      `).join('')}
+                    </div>
+                  </div>
+                </div>
+                <div class="border-t border-slate-700/50 pt-4">
+                  <h4 class="text-lg font-bold text-cyan-400 mb-3">Exporter</h4>
+                  <div class="space-y-2">
+                    <button id="btn-export-json" class="w-full bg-gradient-to-r from-blue-900/50 to-blue-800/50 border border-blue-700/50 hover:border-blue-600/50 hover:from-blue-900/70 hover:to-blue-800/70 text-blue-300 px-4 py-3 rounded-lg transition text-left font-semibold text-sm">
+                      <span class="text-white">Export JSON</span><br><span class="text-xs text-blue-300/70">Données brutes</span>
+                    </button>
+                    <button id="btn-export-csv" class="w-full bg-gradient-to-r from-blue-900/50 to-blue-800/50 border border-blue-700/50 hover:border-blue-600/50 hover:from-blue-900/70 hover:to-blue-800/70 text-blue-300 px-4 py-3 rounded-lg transition text-left font-semibold text-sm">
+                      <span class="text-white">Export CSV</span><br><span class="text-xs text-blue-300/70">Pour Excel/Sheets</span>
+                    </button>
+                    <button id="btn-export-markdown" class="w-full bg-gradient-to-r from-purple-900/50 to-purple-800/50 border border-purple-700/50 hover:border-purple-600/50 hover:from-purple-900/70 hover:to-purple-800/70 text-purple-300 px-4 py-3 rounded-lg transition text-left font-semibold text-sm">
+                      <span class="text-white">Export Markdown</span><br><span class="text-xs text-purple-300/70">Format lisible</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="border-t border-slate-700/50 pt-4">
+                  <h4 class="text-lg font-bold text-indigo-400 mb-3">Importer</h4>
+                  <div class="space-y-2">
+                    <button id="btn-open-import" class="w-full bg-gradient-to-r from-indigo-900/50 to-indigo-800/50 border border-indigo-700/50 hover:border-indigo-600/50 hover:from-indigo-900/70 hover:to-indigo-800/70 text-indigo-300 px-4 py-3 rounded-lg transition text-left font-semibold text-sm">
+                      <span class="text-white">Import JSON</span><br><span class="text-xs text-indigo-300/70">Charger données existantes</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <button id="btn-logout" class="w-full bg-gradient-to-r from-red-900/50 to-red-800/50 border border-red-700/50 hover:border-red-600/50 hover:from-red-900/70 hover:to-red-800/70 text-red-300 px-4 py-3 rounded-lg transition text-left font-semibold text-sm mt-4">
+                <i data-lucide="log-out" style="width: 16px; height: 16px; display: inline; margin-right: 8px;"></i>
+                <span class="text-white">Déconnexion</span>
+              </button>
+              <button id="btn-cancel-settings" class="w-full bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/50 text-slate-300 px-4 py-3 rounded-lg font-semibold transition mt-4">Fermer</button>
+            </div>
+          </div>
+          <div id="modal-import" class="hidden fixed inset-0 flex items-center justify-center z-50">
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
+              <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-6">Importer les données</h3>
+              <div class="space-y-4">
+                <div>
+                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Fichier JSON</label>
+                  <input type="file" id="input-import-file" accept=".json" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-slate-300 focus:outline-none transition">
+                </div>
+                <div id="import-status" class="text-sm text-slate-400"></div>
+              </div>
+              <div class="flex gap-3 mt-8">
+                <button id="btn-cancel-import" class="flex-1 bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/50 text-slate-300 px-4 py-3 rounded-lg font-semibold transition">Annuler</button>
+                <button id="btn-confirm-import" class="flex-1 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white px-4 py-3 rounded-lg font-bold transition shadow-lg shadow-purple-500/20">Importer</button>
+              </div>
+            </div>
+          </div>
+          <div id="modal-filter-games" class="hidden fixed inset-0 flex items-center justify-center z-50">
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-indigo-800/50 shadow-indigo-500/20">
+              <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400 mb-6">Filtrer par Jeu</h3>
+              <div id="games-list" class="space-y-2 max-h-64 overflow-y-auto">
+                ${this.getAvailableGames().map(game => `
+                  <button class="game-filter-btn w-full text-left bg-gradient-to-r from-indigo-900/40 to-indigo-800/40 border border-indigo-700/30 hover:border-indigo-600/50 hover:from-indigo-900/60 hover:to-indigo-800/60 px-4 py-3 rounded-lg text-indigo-300 text-sm font-semibold transition" data-game="${game}">
+                    ${game}
+                  </button>
+                `).join('')}
+              </div>
+              <div class="flex gap-3 mt-8">
+                <button id="btn-cancel-filter-games" class="flex-1 bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/50 text-slate-300 px-4 py-3 rounded-lg font-semibold transition">Annuler</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      attachEventListeners() {
+        // Filter by severity
+        document.querySelectorAll('[data-filter]').forEach(el => {
+          el.addEventListener('click', () => {
+            const filter = el.dataset.filter;
+            if (filter === 'all') {
+              this.currentFilter = null;
+            } else {
+              this.currentFilter = filter;
+            }
+            this.render();
+          });
+        });
+
+        // Close filter view
+        document.getElementById('btn-close-filter')?.addEventListener('click', () => {
+          this.currentFilter = null;
+          this.render();
+        });
+
+        // Close game filter view
+        document.getElementById('btn-close-game-filter')?.addEventListener('click', () => {
+          this.currentGameFilter = null;
+          this.render();
+        });
+
+        // Filter by games
+        document.getElementById('btn-filter-games-header')?.addEventListener('click', () => this.showModal('modal-filter-games'));
+        document.getElementById('btn-filter-games')?.addEventListener('click', () => this.showModal('modal-filter-games'));
+        document.getElementById('btn-cancel-filter-games')?.addEventListener('click', () => this.hideModal('modal-filter-games'));
+        document.querySelectorAll('.game-filter-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const game = e.target.closest('button').dataset.game;
+            this.currentGameFilter = game;
+            this.hideModal('modal-filter-games');
+            this.render();
+          });
+        });
+
+        // Session Management
+        document.getElementById('btn-new-session')?.addEventListener('click', () => this.showModal('modal-new-session'));
+        document.getElementById('btn-save-session')?.addEventListener('click', () => this.saveNewSession());
+        document.getElementById('btn-cancel-session')?.addEventListener('click', () => this.hideModal('modal-new-session'));
+        document.getElementById('btn-delete-session')?.addEventListener('click', () => this.showModal('modal-delete-confirmation'));
+        document.getElementById('btn-confirm-delete')?.addEventListener('click', () => this.confirmDeleteSession());
+        document.getElementById('btn-cancel-delete')?.addEventListener('click', () => this.hideModal('modal-delete-confirmation'));
+        document.getElementById('btn-stop-session')?.addEventListener('click', () => {
+          const activeSession = this.data.sessions.find(s => s.is_active);
+          if (activeSession) {
+            this.endSession(activeSession.id);
+            this.render();
+          }
+        });
+
+        // Game name dropdown toggle
+        document.getElementById('input-session-game-name')?.addEventListener('change', (e) => {
+          const customInput = document.getElementById('input-session-game-name-custom');
+          if (e.target.value === 'custom') {
+            customInput?.classList.remove('hidden');
+          } else {
+            customInput?.classList.add('hidden');
+          }
+        });
+
+        // Session Selection
+        document.querySelectorAll('.session-item').forEach(el => {
+          el.addEventListener('click', (e) => {
+            if (e.currentTarget.classList.contains('locked-session')) return;
+            const sessionId = e.currentTarget.dataset.sessionId;
+            this.selectedSessionId = sessionId;
+            this.render();
+          });
+        });
+
+        // Item Management
+        document.querySelectorAll('.add-item-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            this.currentItemType = e.target.closest('button').dataset.type;
+            const typeLabel = {
+              bug: 'Report Bug',
+              feedback: 'Add Feedback',
+              suggestion: 'Add Suggestion',
+              task: 'Add Task'
+            }[this.currentItemType];
+            document.getElementById('modal-item-title').textContent = typeLabel;
+            this.showModal('modal-add-item');
+          });
+        });
+
+        document.getElementById('btn-save-item')?.addEventListener('click', () => this.saveNewItem());
+        document.getElementById('btn-cancel-item')?.addEventListener('click', () => this.hideModal('modal-add-item'));
+        document.getElementById('btn-add-item-after')?.addEventListener('click', () => this.showAddItemAfterMenu());
+
+        document.querySelectorAll('.edit-item-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const itemId = e.target.closest('button').dataset.itemId;
+            this.openEditItemModal(itemId);
+          });
+        });
+
+        document.getElementById('btn-save-edit-item')?.addEventListener('click', () => this.saveEditItem());
+        document.getElementById('btn-cancel-edit-item')?.addEventListener('click', () => this.hideModal('modal-edit-item'));
+
+        document.querySelectorAll('.delete-item-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const itemId = e.target.closest('button').dataset.itemId;
+            this.deleteItem(itemId);
+          });
+        });
+
+        // Export
+        document.getElementById('btn-settings')?.addEventListener('click', () => this.showModal('modal-settings'));
+        document.getElementById('btn-cancel-settings')?.addEventListener('click', () => this.hideModal('modal-settings'));
+        document.getElementById('btn-logout')?.addEventListener('click', () => {
+          authManager.logout();
+          this.render();
+        });
+        
+        // Filter by games in settings
+        document.getElementById('btn-filter-all-games')?.addEventListener('click', () => {
+          this.currentGameFilter = null;
+          this.hideModal('modal-settings');
+          this.render();
+        });
+        
+        document.querySelectorAll('.settings-game-filter-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const game = e.target.closest('button').dataset.game;
+            this.currentGameFilter = game;
+            this.hideModal('modal-settings');
+            this.render();
+          });
+        });
+        
+        document.getElementById('btn-export-json')?.addEventListener('click', () => this.exportJSON());
+        document.getElementById('btn-export-csv')?.addEventListener('click', () => this.exportCSV());
+        document.getElementById('btn-export-markdown')?.addEventListener('click', () => this.exportMarkdown());
+
+        // Import
+        document.getElementById('btn-open-import')?.addEventListener('click', () => this.showModal('modal-import'));
+        document.getElementById('btn-cancel-import')?.addEventListener('click', () => this.hideModal('modal-import'));
+        document.getElementById('btn-confirm-import')?.addEventListener('click', () => this.importJSON());
+      }
+
+      showModal(modalId) {
+        document.getElementById(modalId)?.classList.remove('hidden');
+        document.getElementById('modal-overlay')?.classList.remove('hidden');
+      }
+
+      hideModal(modalId) {
+        document.getElementById(modalId)?.classList.add('hidden');
+        document.getElementById('modal-overlay')?.classList.add('hidden');
+      }
+
+      async saveNewSession() {
+        const saveBtn = document.getElementById('btn-save-session');
+        const originalText = 'Démarrer';
+        
+        try {
+          const gameNameSelect = document.getElementById('input-session-game-name')?.value;
+          let gameName = gameNameSelect;
+          
+          if (gameNameSelect === 'custom') {
+            gameName = document.getElementById('input-session-game-name-custom')?.value;
+          }
+          
+          const date = document.getElementById('input-session-date')?.value;
+          const panelSize = parseInt(document.getElementById('input-session-panel')?.value || '0');
+          const noteTaker = document.getElementById('input-session-note-taker')?.value;
+          const remarks = document.getElementById('input-session-remarks')?.value;
+
+          if (!gameName || !date || !panelSize || !noteTaker) {
+            alert('Veuillez remplir tous les champs obligatoires');
+            return;
+          }
+
+          // Désactiver le bouton et afficher un état de chargement
+          if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Création en cours...';
+          }
+          
+          // Créer la session et attendre la création complète
+          await this.addSession({ gameName, date, panelSize, noteTaker, remarks });
+          
+          // Quitter les vues filtrées
+          this.currentFilter = null;
+          this.currentGameFilter = null;
+          
+          // Attendre un peu pour que Google Sheets finisse de synchroniser
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Vider les champs du formulaire
+          document.getElementById('input-session-game-name').value = '';
+          document.getElementById('input-session-game-name-custom').value = '';
+          document.getElementById('input-session-game-name-custom').classList.add('hidden');
+          document.getElementById('input-session-date').value = '';
+          document.getElementById('input-session-panel').value = '';
+          document.getElementById('input-session-note-taker').value = '';
+          document.getElementById('input-session-remarks').value = '';
+          
+          // Fermer le modal
+          this.hideModal('modal-new-session');
+          
+          // Réinitialiser le bouton
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = originalText;
+          }
+          
+        } catch (error) {
+          console.error('Erreur saveNewSession:', error);
+          alert('Erreur lors de la création de la session: ' + error.message);
+          
+          // Réinitialiser le bouton
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = originalText;
+          }
+        }
+      }
+
+      saveNewItem() {
+        const content = document.getElementById('input-item-content')?.value;
+        const severity = document.getElementById('input-item-severity')?.value;
+
+        if (!content) {
+          alert('Veuillez remplir la description');
+          return;
+        }
+
+        // Utiliser la session sélectionnée, pas toujours la dernière
+        const selectedSessionId = this.selectedSessionId || (this.data.sessions.find(s => s.is_active)?.id) || (this.data.sessions.length > 0 ? this.data.sessions[0].id : null);
+        const selectedSession = this.data.sessions.find(s => s.id === selectedSessionId);
+        
+        if (!selectedSession) {
+          alert('Aucune session sélectionnée');
+          return;
+        }
+
+        this.addItem({
+          sessionId: selectedSession.id,
+          type: this.currentItemType,
+          severity,
+          status: 'open',
+          content,
+          assignedTo: ''
+        }).then(() => {
+          this.hideModal('modal-add-item');
+        });
+      }
+
+      openEditItemModal(itemId) {
+        const item = this.data.items.find(i => i.id === itemId);
+        if (!item) return;
+
+        document.getElementById('edit-item-content').value = item.content;
+        document.getElementById('edit-item-severity').value = item.severity || 'info';
+        this.currentEditItemId = itemId;
+
+        this.showModal('modal-edit-item');
+      }
+
+      saveEditItem() {
+        const content = document.getElementById('edit-item-content')?.value;
+        const severity = document.getElementById('edit-item-severity')?.value;
+
+        if (!content) {
+          alert('Veuillez remplir la description');
+          return;
+        }
+
+        this.updateItem(this.currentEditItemId, {
+          content,
+          severity
+        });
+
+        this.hideModal('modal-edit-item');
+      }
+
+      deleteActiveSession() {
+        const selectedSessionId = this.selectedSessionId || (this.data.sessions.find(s => s.is_active)?.id) || (this.data.sessions.length > 0 ? this.data.sessions[0].id : null);
+        const selectedSession = this.data.sessions.find(s => s.id === selectedSessionId);
+        if (selectedSession) {
+          this.deleteSession(selectedSessionId);
+          this.selectedSessionId = null;
+        }
+      }
+
+      confirmDeleteSession() {
+        const selectedSessionId = this.selectedSessionId || (this.data.sessions.find(s => s.is_active)?.id) || (this.data.sessions.length > 0 ? this.data.sessions[0].id : null);
+        const selectedSession = this.data.sessions.find(s => s.id === selectedSessionId);
+        if (selectedSession) {
+          this.deleteSession(selectedSessionId);
+          this.selectedSessionId = null;
+          this.hideModal('modal-delete-confirmation');
+          this.render();
+        }
+      }
+
+      showAddItemAfterMenu() {
+        const selectedSessionId = this.selectedSessionId || this.data.sessions[0].id;
+        const selectedSession = this.data.sessions.find(s => s.id === selectedSessionId);
+        if (!selectedSession) return;
+
+        this.selectedSessionId = selectedSessionId;
+        document.getElementById('modal-item-title').textContent = 'Sélectionner le type d\'entrée';
+        
+        // Create a temporary modal for type selection
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalAddItem = document.getElementById('modal-add-item');
+        
+        // Show a simple selection modal
+        const typeSelection = document.createElement('div');
+        typeSelection.id = 'modal-type-selection';
+        typeSelection.className = 'hidden fixed inset-0 flex items-center justify-center z-50';
+        typeSelection.innerHTML = `
+          <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
+            <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-6">Sélectionner le type</h3>
+            <div class="grid grid-cols-2 gap-3">
+              <button class="type-select-btn bg-gradient-to-r from-red-900/40 to-red-800/40 border border-red-700/30 hover:border-red-600/50 hover:from-red-900/60 hover:to-red-800/60 px-4 py-3 rounded-lg text-red-300 text-sm font-bold transition" data-type="bug">Bug</button>
+              <button class="type-select-btn bg-gradient-to-r from-blue-900/40 to-blue-800/40 border border-blue-700/30 hover:border-blue-600/50 hover:from-blue-900/60 hover:to-blue-800/60 px-4 py-3 rounded-lg text-blue-300 text-sm font-bold transition" data-type="feedback">Retour</button>
+              <button class="type-select-btn bg-gradient-to-r from-green-900/40 to-green-800/40 border border-green-700/30 hover:border-green-600/50 hover:from-green-900/60 hover:to-green-800/60 px-4 py-3 rounded-lg text-green-300 text-sm font-bold transition" data-type="suggestion">Suggestion</button>
+              <button class="type-select-btn bg-gradient-to-r from-purple-900/40 to-purple-800/40 border border-purple-700/30 hover:border-purple-600/50 hover:from-purple-900/60 hover:to-purple-800/60 px-4 py-3 rounded-lg text-purple-300 text-sm font-bold transition" data-type="task">Tâche</button>
+            </div>
+            <button id="btn-cancel-type-selection" class="w-full bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/50 text-slate-300 px-4 py-3 rounded-lg font-semibold transition mt-6">Annuler</button>
+          </div>
+        `;
+        document.body.appendChild(typeSelection);
+
+        typeSelection.classList.remove('hidden');
+        modalOverlay?.classList.remove('hidden');
+
+        typeSelection.querySelectorAll('.type-select-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            this.currentItemType = e.target.closest('button').dataset.type;
+            typeSelection.remove();
+            this.showModal('modal-add-item');
+          });
+        });
+
+        document.getElementById('btn-cancel-type-selection')?.addEventListener('click', () => {
+          typeSelection.remove();
+          modalOverlay?.classList.add('hidden');
+        });
+      }
+    }
+
+    // Initialize app
+    window.addEventListener('DOMContentLoaded', () => {
+      new PlaytestManager();
+    });
+  </script>
+  <style>body { box-sizing: border-box; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+  <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
+ </head>
+ <body>
+  <div id="app"></div>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9eeaaf05877e3b5e',t:'MTc3NjU4ODg1Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
