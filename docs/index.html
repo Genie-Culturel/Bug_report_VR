@@ -313,6 +313,84 @@
 
     const storage = new GoogleSheetsAdapter();
 
+    // ===== URL PREFILL MANAGER =====
+    class URLPrefillManager {
+      constructor() {
+        this.params = this.parseURLParams();
+        this.processed = false;
+      }
+
+      parseURLParams() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const params = {
+          game: urlParams.get('game') || '',
+          date: urlParams.get('date') || '',
+          time: urlParams.get('time') || '',
+          panel: urlParams.get('panel') || '',
+          gm: urlParams.get('gm') || '',
+          remarks: urlParams.get('remarks') || '',
+          ref: urlParams.get('ref') || '',
+          autostart: urlParams.get('autostart') === '1'
+        };
+        return params;
+      }
+
+      hasParams() {
+        return !!this.params.game;
+      }
+
+      storeParams() {
+        // Store params in sessionStorage to survive auth redirect
+        if (this.hasParams()) {
+          sessionStorage.setItem('vrc_prefill_params', JSON.stringify(this.params));
+        }
+      }
+
+      retrieveStoredParams() {
+        const stored = sessionStorage.getItem('vrc_prefill_params');
+        if (stored) {
+          try {
+            this.params = JSON.parse(stored);
+            sessionStorage.removeItem('vrc_prefill_params');
+            return true;
+          } catch (e) {
+            console.error('Failed to parse stored params:', e);
+          }
+        }
+        return false;
+      }
+
+      checkForDuplicate(sessions) {
+        // Check for duplicate by ref
+        if (this.params.ref) {
+          const byRef = sessions.find(s => s.remarks && s.remarks.includes(`[ref:${this.params.ref}]`));
+          if (byRef) return byRef;
+        }
+
+        // Check for duplicate by game + date + time
+        if (this.params.game && this.params.date && this.params.time) {
+          const byGameDateTime = sessions.find(s => 
+            s.game_name === this.params.game &&
+            s.date === this.params.date &&
+            s.start_time === this.params.time
+          );
+          if (byGameDateTime) return byGameDateTime;
+        }
+
+        return null;
+      }
+
+      cleanURL() {
+        // Remove URL params without reloading
+        if (window.history && window.history.replaceState) {
+          const url = window.location.pathname;
+          window.history.replaceState({}, document.title, url);
+        }
+      }
+    }
+
+    const urlPrefillManager = new URLPrefillManager();
+
     class PlaytestManager {
       constructor() {
         this.selectedSessionId = null;
@@ -323,6 +401,8 @@
         this.currentEditItemId = null;
         this.data = { sessions: [], items: [] };
         this.sortJournalBySeverity = false;
+        this.prefillPending = false;
+        this.openPrefillModal = false;
         this.initializeApp();
       }
 
@@ -334,6 +414,10 @@
             this.data = data;
             this.render();
           });
+          
+          // Handle URL prefill after data is loaded
+          await this.handleURLPrefill();
+          
           this.render();
         } catch (error) {
           const app = document.getElementById('app');
@@ -353,6 +437,71 @@
           document.getElementById('btn-retry')?.addEventListener('click', () => {
             location.reload();
           });
+        }
+      }
+
+      async handleURLPrefill() {
+        // Check if we have stored params from before auth
+        const hadStoredParams = urlPrefillManager.retrieveStoredParams();
+        
+        // Check if we have params to process
+        if (!urlPrefillManager.hasParams()) {
+          return;
+        }
+
+        // Guard: ensure data is fully loaded before processing
+        if (!storage.isReady) {
+          console.warn('Storage not ready, skipping URL prefill');
+          return;
+        }
+
+        const params = urlPrefillManager.params;
+
+        // Check for existing session
+        const existingSession = urlPrefillManager.checkForDuplicate(this.data.sessions);
+        
+        if (existingSession) {
+          // Open existing session instead of creating a new one
+          this.selectedSessionId = existingSession.id;
+          urlPrefillManager.cleanURL();
+          urlPrefillManager.processed = true;
+          return;
+        }
+
+        // If autostart, create session directly
+        if (params.autostart) {
+          await this.createSessionFromPrefill(params);
+          urlPrefillManager.cleanURL();
+          urlPrefillManager.processed = true;
+        } else {
+          // Otherwise, just prefill the form (will be done in render)
+          this.prefillPending = true;
+        }
+      }
+
+      async createSessionFromPrefill(params) {
+        try {
+          // Build remarks with ref if provided
+          let remarks = params.remarks || '';
+          if (params.ref) {
+            remarks = remarks ? `${remarks} [ref:${params.ref}]` : `[ref:${params.ref}]`;
+          }
+
+          const sessionData = {
+            gameName: params.game,
+            date: params.date,
+            panelSize: parseInt(params.panel) || 0,
+            noteTaker: params.gm || 'N/A',
+            remarks: remarks,
+            time: params.time // Pass time if provided for duplicate check
+          };
+
+          const sessionId = await this.addSession(sessionData);
+          this.selectedSessionId = sessionId;
+        } catch (error) {
+          console.error('Failed to create session from prefill:', error);
+          // Fall back to showing the form
+          this.prefillPending = true;
         }
       }
 
@@ -873,12 +1022,57 @@
         return Array.from(games).sort();
       }
 
+      openNewSessionModalWithPrefill() {
+        const params = urlPrefillManager.params;
+        
+        // Show the modal
+        this.showModal('modal-new-session');
+        
+        // Fill the form with params
+        const gameSelect = document.getElementById('input-session-game-name');
+        const customGameInput = document.getElementById('input-session-game-name-custom');
+        const dateInput = document.getElementById('input-session-date');
+        const panelInput = document.getElementById('input-session-panel');
+        const gmInput = document.getElementById('input-session-note-taker');
+        const remarksInput = document.getElementById('input-session-remarks');
+        
+        // Fill game name
+        if (params.game) {
+          const gameOptions = Array.from(gameSelect?.options || []).map(o => o.value);
+          if (gameOptions.includes(params.game)) {
+            gameSelect.value = params.game;
+          } else {
+            // Use custom field
+            gameSelect.value = 'custom';
+            customGameInput?.classList.remove('hidden');
+            customGameInput.value = params.game;
+          }
+        }
+        
+        // Fill other fields
+        if (params.date && dateInput) dateInput.value = params.date;
+        if (params.panel && panelInput) panelInput.value = params.panel;
+        if (params.gm && gmInput) gmInput.value = params.gm;
+        
+        // Fill remarks with ref if provided
+        if (remarksInput) {
+          let remarks = params.remarks || '';
+          if (params.ref) {
+            remarks = remarks ? `${remarks} [ref:${params.ref}]` : `[ref:${params.ref}]`;
+          }
+          remarksInput.value = remarks;
+        }
+      }
+
       render() {
         if (!this.data) this.data = { sessions: [], items: [] };
         const app = document.getElementById('app');
 
         // Show auth screen if not authenticated
         if (!authManager.isAuthenticated) {
+          // Store URL params before showing auth
+          urlPrefillManager.storeParams();
+          
           app.innerHTML = `
             <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
               <div class="text-center">
@@ -911,6 +1105,15 @@
           this.attachAuthListeners();
           lucide.createIcons();
           return;
+        }
+        
+        // If we have pending prefill and not autostart, show the form with prefilled data
+        if (this.prefillPending && !urlPrefillManager.params.autostart) {
+          this.prefillPending = false;
+          urlPrefillManager.cleanURL();
+          urlPrefillManager.processed = true;
+          // Continue to render normally, but mark that we should open the modal
+          this.openPrefillModal = true;
         }
         
         app.innerHTML = `
@@ -1593,6 +1796,14 @@
       }
 
       attachEventListeners() {
+        // Handle prefill modal opening if needed
+        if (this.openPrefillModal) {
+          this.openPrefillModal = false;
+          setTimeout(() => {
+            this.openNewSessionModalWithPrefill();
+          }, 100);
+        }
+        
         // Filter by severity
         document.querySelectorAll('[data-filter]').forEach(el => {
           el.addEventListener('click', () => {
