@@ -29,7 +29,7 @@ L'application supporte la création de sessions pré-remplies via des paramètre
 
 **Format de l'URL:**
 ```
-https://genie-culturel.github.io/Bug_report_VR/?game=<nom_du_jeu>&date=YYYY-MM-DD&time=HH:MM&panel=<nombre>&gm=<nom_gm>&remarks=<remarques>&ref=<id_externe>&autostart=1
+https://genie-culturel.github.io/Bug_report_VR/?game=<nom_du_jeu>&date=YYYY-MM-DD&time=HH:MM&panel=<nombre>&gm=<nom_gm>&remarks=<remarques>&ref=<id_externe>&session_id=<uuid_vr_sessions>&autostart=1
 ```
 
 **Paramètres disponibles:**
@@ -43,15 +43,18 @@ https://genie-culturel.github.io/Bug_report_VR/?game=<nom_du_jeu>&date=YYYY-MM-D
 | `gm` | Nom du GM/preneur de notes | `GM-423` | Non |
 | `remarks` | Remarques générales | `Session test` | Non |
 | `ref` | ID de référence externe (`bug_sessions.ref`) | `session-123` | Non |
+| `session_id` | UUID de la session GM (`vr_sessions.id` → `bug_sessions.vr_session_id`) | `a1b2c3d4-...` | Non |
 | `autostart` | Créer et démarrer automatiquement | `1` | Non |
 
 **Comportement:**
 
 - Si seul `game` est présent : ouvre le formulaire de nouvelle session avec le champ `game` pré-rempli
 - Si `autostart=1` : crée et démarre la session automatiquement, l'utilisateur arrive directement sur "Ajouter une entrée"
-- **Détection de doublons** : évite de créer des sessions en double
+- **Détection de doublons** : évite de créer des sessions en double, dans cet ordre
+  - Par `session_id` : `bug_sessions.vr_session_id` (clé primaire de dédup)
   - Par `ref` : colonne unique `bug_sessions.ref`
   - Sinon par `game` + `date` + `time`
+- Si `session_id` n'existe pas dans `vr_sessions` (contrainte FK), la session est tout de même créée **sans** `vr_session_id` (avertissement dans la console)
 - L'URL est nettoyée après traitement (`history.replaceState`, pas de recréation au rechargement)
 - Les paramètres sont préservés durant l'authentification (PIN)
 - Si Supabase est injoignable : message **« Impossible de charger les données, réessaie »** + bouton Réessayer. Aucune écriture n'est tentée.
@@ -70,6 +73,7 @@ sessionUrl.searchParams.set('time', '13:45');
 sessionUrl.searchParams.set('panel', '5');
 sessionUrl.searchParams.set('gm', 'GM-423');
 sessionUrl.searchParams.set('ref', 'session-abc-123');
+sessionUrl.searchParams.set('session_id', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890');
 sessionUrl.searchParams.set('autostart', '1');
 
 window.open(sessionUrl.toString(), '_blank');

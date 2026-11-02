@@ -281,6 +281,11 @@
     const SUPABASE_URL = 'https://vxeprhyswkqugyewpwfm.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_COByzOZPOYT1_9zELSfo4w_EpEhOc5u';
     const LOAD_ERROR_MESSAGE = 'Impossible de charger les données, réessaie';
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    function isValidUuid(value) {
+      return typeof value === 'string' && UUID_RE.test(value.trim());
+    }
 
     // ===== AUTH MANAGER =====
     const ACCESS_PIN = '1950';
@@ -404,8 +409,10 @@
 
       sessionToRow(session) {
         const time = this.normalizeTime(session.start_time) || null;
+        const vrSessionId = isValidUuid(session.vr_session_id) ? session.vr_session_id.trim() : null;
         return {
           ref: session.ref ? String(session.ref) : null,
+          vr_session_id: vrSessionId,
           game: session.game_name,
           session_date: session.date,
           session_time: time,
@@ -413,6 +420,11 @@
           gm: session.note_taker || null,
           remarks: session.remarks || null
         };
+      }
+
+      isForeignKeyError(error) {
+        const message = (error && (error.message || error.details || '')) || '';
+        return !!(error && (error.code === '23503' || /foreign key/i.test(message)));
       }
 
       itemToRow(item) {
@@ -483,11 +495,22 @@
         try {
           if (this.isSessionRecord(record)) {
             const row = this.sessionToRow(record);
-            const { data, error } = await this.client
+            let { data, error } = await this.client
               .from('bug_sessions')
               .insert(row)
               .select()
               .single();
+            if (error && row.vr_session_id && this.isForeignKeyError(error)) {
+              console.warn('vr_session_id does not match an existing vr_sessions row; saving without vr_session_id', row.vr_session_id, error);
+              const fallback = { ...row, vr_session_id: null };
+              const retry = await this.client
+                .from('bug_sessions')
+                .insert(fallback)
+                .select()
+                .single();
+              data = retry.data;
+              error = retry.error;
+            }
             if (error) {
               const isDuplicate = error.code === '23505' || /duplicate/i.test(error.message || '');
               if (isDuplicate && row.ref) {
@@ -645,6 +668,7 @@
 
       parseURLParams() {
         const urlParams = new URLSearchParams(window.location.search);
+        const rawSessionId = (urlParams.get('session_id') || '').trim();
         const params = {
           game: urlParams.get('game') || '',
           date: urlParams.get('date') || '',
@@ -653,6 +677,7 @@
           gm: urlParams.get('gm') || '',
           remarks: urlParams.get('remarks') || '',
           ref: urlParams.get('ref') || '',
+          session_id: isValidUuid(rawSessionId) ? rawSessionId : '',
           autostart: urlParams.get('autostart') === '1'
         };
         return params;
@@ -691,6 +716,11 @@
       }
 
       checkForDuplicate(sessions) {
+        if (this.params.session_id) {
+          const byVrSession = sessions.find(s => s.vr_session_id && s.vr_session_id === this.params.session_id);
+          if (byVrSession) return byVrSession;
+        }
+
         if (this.params.ref) {
           const byRef = sessions.find(s => s.ref && s.ref === this.params.ref);
           if (byRef) return byRef;
@@ -734,6 +764,7 @@
         this.openPrefillModal = false;
         this.pendingRef = '';
         this.pendingTime = '';
+        this.pendingVrSessionId = '';
         this.initializeApp();
       }
 
@@ -819,7 +850,8 @@
           noteTaker: params.gm || 'N/A',
           remarks: params.remarks || '',
           time: params.time || '',
-          ref: params.ref || ''
+          ref: params.ref || '',
+          vrSessionId: params.session_id || ''
         };
         const sessionId = await this.addSession(sessionData);
         this.selectedSessionId = sessionId;
@@ -861,6 +893,7 @@
 
         const sessionToCreate = {
           ref: sessionData.ref || '',
+          vr_session_id: sessionData.vrSessionId || '',
           game_name: sessionData.gameName,
           date: sessionData.date,
           panel_size: sessionData.panelSize,
@@ -1400,6 +1433,7 @@
         if (remarksInput) remarksInput.value = params.remarks || '';
         this.pendingRef = params.ref || '';
         this.pendingTime = params.time || '';
+        this.pendingVrSessionId = params.session_id || '';
       }
 
       render() {
@@ -2204,6 +2238,7 @@
         document.getElementById('btn-new-session')?.addEventListener('click', () => {
           this.pendingRef = '';
           this.pendingTime = '';
+          this.pendingVrSessionId = '';
           this.showModal('modal-new-session');
         });
         document.getElementById('btn-save-session')?.addEventListener('click', () => this.saveNewSession());
@@ -2375,10 +2410,12 @@
             noteTaker,
             remarks,
             ref: this.pendingRef || '',
-            time: this.pendingTime || ''
+            time: this.pendingTime || '',
+            vrSessionId: this.pendingVrSessionId || ''
           });
           this.pendingRef = '';
           this.pendingTime = '';
+          this.pendingVrSessionId = '';
           
           // Sélectionner la nouvelle session immédiatement
           this.selectedSessionId = newSessionId;
