@@ -2,7 +2,7 @@
 <html lang="fr">
  <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Bug report VR</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
@@ -14,6 +14,8 @@
       margin: 0; 
       padding: 0; 
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
     }
     #app { 
       height: 100%; 
@@ -21,6 +23,8 @@
       flex-direction: column;
       background: #0f172a;
       color: #e2e8f0;
+      min-width: 0;
+      overflow-x: hidden;
     }
     @keyframes spin {
       from { transform: rotate(0deg); }
@@ -30,10 +34,250 @@
       animation: spin 1s linear infinite;
       display: inline-block;
     }
+    button, .session-item, .type-select-btn {
+      touch-action: manipulation;
+    }
+
+    /* Mobile: single column, no page overflow, 16px inputs, 44px taps. Desktop unchanged. */
+    @media (max-width: 767px) {
+      html, body, #app {
+        height: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+      #app {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+
+      input, select, textarea {
+        font-size: 16px !important;
+        line-height: 1.4;
+        max-width: 100%;
+      }
+      button, .session-item, .type-select-btn, [data-filter] {
+        min-height: 44px;
+      }
+      .edit-item-btn, .delete-item-btn, #btn-add-item-after,
+      #btn-toggle-sort-journal, #btn-download-journal, #btn-delete-session,
+      #btn-new-session, #btn-settings, #btn-auth-submit,
+      #btn-save-item, #btn-cancel-item, #btn-save-session, #btn-cancel-session {
+        min-height: 44px;
+      }
+      .delete-item-btn {
+        min-width: 44px;
+      }
+
+      .auth-screen {
+        padding: 1rem;
+        align-items: flex-start;
+        overflow-y: auto;
+      }
+      .auth-screen .auth-wrap {
+        width: 100%;
+        max-width: 100%;
+        padding-top: 1.5rem;
+      }
+      .auth-card {
+        width: 100% !important;
+        max-width: 100%;
+        padding: 1.25rem !important;
+      }
+      .auth-screen h1 {
+        font-size: 1.75rem !important;
+        line-height: 1.2;
+      }
+
+      .app-header {
+        padding: 0.875rem 1rem !important;
+      }
+      .app-header-top {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.75rem;
+      }
+      .app-header h1 {
+        font-size: 1.5rem !important;
+        line-height: 1.25;
+      }
+      .app-header-tools {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.75rem !important;
+      }
+      .app-stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 0.5rem !important;
+      }
+      .app-stats [data-filter] {
+        padding: 0.35rem 0.15rem;
+        min-width: 0;
+      }
+      .app-stats [data-filter] > div:first-child {
+        font-size: 1.15rem !important;
+      }
+      .app-stats [data-filter] > div:last-child {
+        font-size: 0.6rem !important;
+        letter-spacing: 0.02em;
+        white-space: normal;
+        line-height: 1.2;
+      }
+      #btn-settings {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .app-shell {
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        height: 100%;
+      }
+      .app-body {
+        flex-direction: column !important;
+        overflow: visible !important;
+        flex: 1 0 auto !important;
+        min-height: auto;
+        height: auto !important;
+      }
+      .app-sidebar {
+        width: 100% !important;
+        max-width: 100%;
+        flex: 0 0 auto;
+        max-height: none;
+        height: auto;
+        border-right: none !important;
+        border-bottom: 1px solid rgba(88, 28, 135, 0.3);
+        overflow: visible;
+      }
+      .app-sidebar > div:first-child {
+        padding: 0.75rem 1rem 0.5rem !important;
+      }
+      .app-sessions-wrap {
+        padding: 0 1rem 0.75rem !important;
+      }
+      .app-sessions {
+        display: grid !important;
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+      }
+      .session-item {
+        min-width: 0;
+        padding: 0.75rem !important;
+      }
+
+      .app-main {
+        flex: 1 0 auto;
+        min-height: auto;
+        height: auto !important;
+        width: 100%;
+        max-width: 100%;
+        padding: 1rem !important;
+        overflow: visible;
+      }
+      .session-heading-row {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.75rem;
+        margin-bottom: 1rem !important;
+      }
+      .session-heading-row h2,
+      .app-main h2 {
+        font-size: 1.5rem !important;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+      }
+      #btn-delete-session,
+      #btn-add-item-after {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .item-card-row {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.75rem !important;
+      }
+      .item-actions {
+        display: flex;
+        gap: 0.5rem;
+        width: 100%;
+      }
+      .item-actions .edit-item-btn {
+        flex: 1;
+        justify-content: center;
+        min-height: 44px;
+        font-size: 0.875rem !important;
+        padding: 0.6rem 0.75rem !important;
+      }
+      .item-actions .delete-item-btn {
+        flex: 0 0 44px;
+      }
+      .item-card p, .item-card-row p {
+        overflow-wrap: anywhere;
+      }
+
+      .journal-panel {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin-top: 1.5rem !important;
+        width: 100%;
+      }
+      .journal-toolbar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.5rem;
+      }
+      .journal-toolbar > div {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        width: 100%;
+      }
+      .journal-toolbar button {
+        width: 100%;
+        justify-content: center;
+      }
+      .journal-panel .font-mono {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        font-size: 0.8rem;
+      }
+
+      .filter-heading-row {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.75rem;
+      }
+
+      [id^="modal-"] {
+        padding: 0.75rem;
+        align-items: flex-start;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .modal-box,
+      [id^="modal-"] > div,
+      #modal-type-selection > div {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 auto;
+        max-height: calc(100dvh - 1.5rem);
+        overflow-y: auto;
+        padding: 1.25rem !important;
+      }
+      .type-select-btn {
+        min-height: 48px;
+        font-size: 1rem !important;
+      }
+    }
   </style>
   <script>
     const STORAGE_KEY = 'vrc_playtest_manager';
-    const VERSION = '2.0.0';
+    const VERSION = '2.1.0';
     const SUPABASE_URL = 'https://vxeprhyswkqugyewpwfm.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_COByzOZPOYT1_9zELSfo4w_EpEhOc5u';
     const LOAD_ERROR_MESSAGE = 'Impossible de charger les données, réessaie';
@@ -1168,15 +1412,15 @@
           urlPrefillManager.storeParams();
           
           app.innerHTML = `
-            <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
-              <div class="text-center">
+            <div class="auth-screen flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
+              <div class="auth-wrap text-center px-4 w-full max-w-sm">
                 <div class="mb-8">
                   <i data-lucide="lock" style="width: 64px; height: 64px; margin: 0 auto 16px; color: #06b6d4;"></i>
                   <h1 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400">Bug report VR</h1>
                   <p class="text-purple-300/70 text-sm tracking-widest uppercase mt-2">Accès sécurisé</p>
                 </div>
                 
-                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
+                <div class="auth-card bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 max-w-full border border-purple-800/50 shadow-purple-500/20">
                   <h2 class="text-2xl font-bold text-white mb-6">Entrez le code PIN</h2>
                   <div class="space-y-4">
                     <input 
@@ -1211,9 +1455,9 @@
         }
         
         app.innerHTML = `
-          <div class="flex h-full flex-col bg-slate-900 text-slate-100">
+          <div class="app-shell flex h-full flex-col bg-slate-900 text-slate-100">
             ${this.renderHeader()}
-            <div class="flex flex-1 overflow-hidden">
+            <div class="app-body flex flex-1 overflow-hidden min-w-0">
               ${this.renderSidebar()}
               ${this.renderMain()}
             </div>
@@ -1282,14 +1526,14 @@
         const stats = this.getStats(this.currentGameFilter);
         const hasActiveSession = this.data.sessions.some(s => s.isActive);
         return `
-          <header class="bg-gradient-to-r from-slate-950 via-purple-950 to-slate-950 border-b border-purple-800/50 px-6 py-5">
-            <div class="flex justify-between items-center">
-              <div>
+          <header class="app-header bg-gradient-to-r from-slate-950 via-purple-950 to-slate-950 border-b border-purple-800/50 px-6 py-5">
+            <div class="app-header-top flex justify-between items-center">
+              <div class="app-brand min-w-0">
                 <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400">Bug report VR</h1>
                 <p class="text-purple-300/70 text-xs tracking-widest uppercase mt-1">Gestionnaire de Sessions & Suivi des bugs</p>
               </div>
-              <div class="flex gap-6 items-center">
-                <div class="grid grid-cols-5 gap-4">
+              <div class="app-header-tools flex gap-6 items-center">
+                <div class="app-stats grid grid-cols-5 gap-4">
                   <div class="text-center cursor-pointer hover:opacity-80 transition" data-filter="all">
                     <div class="text-2xl font-black text-cyan-400">${stats.totalSessions}</div>
                     <div class="text-xs text-slate-400 uppercase tracking-wider">Sessions</div>
@@ -1315,6 +1559,7 @@
                   <i data-lucide="settings" style="width: 18px; height: 18px;"></i>
                   Paramètres
                 </button>
+              </div>
             </div>
           </header>
         `;
@@ -1326,16 +1571,16 @@
         const selectedSessionId = this.selectedSessionId || activeSession?.id || (sessions.length > 0 ? sessions[0].id : null);
         
         return `
-          <aside class="w-72 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-r border-purple-900/30 overflow-y-auto">
+          <aside class="app-sidebar w-72 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-r border-purple-900/30 overflow-y-auto">
             <div class="p-6">
               <button id="btn-new-session" class="w-full bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 px-4 py-3 rounded-lg text-white font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20">
                 <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
                 Nouvelle Session
               </button>
             </div>
-            <div class="px-4 pb-6">
+            <div class="app-sessions-wrap px-4 pb-6">
               <h3 class="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-4 uppercase tracking-widest">Sessions</h3>
-              <div class="space-y-3">
+              <div class="app-sessions space-y-3">
                 ${sessions.length === 0 ? '<p class="text-xs text-slate-500 italic">Aucune session</p>' : ''}
                 ${[...sessions].reverse().map((s, index) => {
                   const isSelected = s.id === selectedSessionId;
@@ -1375,7 +1620,7 @@
         
         if (sessions.length === 0) {
           return `
-            <main class="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8">
+            <main class="app-main flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8">
               <div class="text-center flex-1 flex items-center justify-center">
                 <div>
                   <i data-lucide="sparkles" style="width: 64px; height: 64px; margin: 0 auto 16px; color: #06b6d4;"></i>
@@ -1422,10 +1667,10 @@
         };
         
         return `
-          <main class="flex-1 overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8 flex flex-col">
-            <div class="flex-1 w-full">
-              <div class="flex justify-between items-start mb-8">
-                <div class="flex-1">
+          <main class="app-main flex-1 overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8 flex flex-col min-w-0">
+            <div class="flex-1 w-full min-w-0">
+              <div class="session-heading-row flex justify-between items-start mb-8">
+                <div class="flex-1 min-w-0">
                   <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-3 break-words">Session ${selectedSession.number || 1} - ${selectedSession.game_name || 'N/A'}</h2>
                   <div class="text-slate-400 space-y-1.5 text-sm">
                     <p>Début: <span class="text-cyan-300">${formatDate(selectedSession.date)}</span></p>
@@ -1465,15 +1710,15 @@
                     <h3 class="text-lg font-bold text-white mb-4 uppercase tracking-wider">${typeLabel}</h3>
                     <div class="space-y-3">
                       ${typeItems.map(item => `
-                        <div style="border-left: 4px solid ${this.getSeverityHexColor(item.severity)};" class="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-5 hover:shadow-lg transition ${item.severity === 'archived' ? 'opacity-60' : ''}">
-                          <div class="flex justify-between items-start gap-4">
-                            <div class="flex-1">
+                        <div style="border-left: 4px solid ${this.getSeverityHexColor(item.severity)};" class="item-card bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-5 hover:shadow-lg transition ${item.severity === 'archived' ? 'opacity-60' : ''}">
+                          <div class="item-card-row flex justify-between items-start gap-4">
+                            <div class="flex-1 min-w-0">
                               <p class="text-white font-semibold text-base">${item.content || 'N/A'}</p>
                               <div class="text-xs text-slate-400 mt-3 flex gap-3">
                                 ${item.severity === 'archived' ? `<span class="text-orange-300 italic">Archivée</span>` : ''}
                               </div>
                             </div>
-                            <div class="flex gap-2">
+                            <div class="item-actions flex gap-2">
                               <button class="edit-item-btn bg-purple-900/20 hover:bg-purple-900/40 border border-purple-700/30 hover:border-purple-600/50 text-purple-300 px-3 py-1.5 rounded text-xs font-semibold transition" data-item-id="${item.id}">
                                 <i data-lucide="edit-2" style="width: 14px; height: 14px; display: inline; margin-right: 4px;"></i> Modifier
                               </button>
@@ -1489,9 +1734,9 @@
                 `;
               }).join('')}
             </div>
-            <div class="w-full -mx-8 px-8 mt-12">
+            <div class="journal-panel w-full -mx-8 px-8 mt-12">
               <div class="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-6">
-                <div class="flex justify-between items-center mb-4">
+                <div class="journal-toolbar flex justify-between items-center mb-4">
                   <h3 class="text-lg font-bold text-white uppercase tracking-wider">Résumé de la Session - Journal</h3>
                   <div class="flex gap-2">
                     <button id="btn-toggle-sort-journal" class="bg-gradient-to-r from-green-900/40 to-green-800/40 border border-green-700/30 hover:border-green-600/50 hover:from-green-900/60 hover:to-green-800/60 px-4 py-2 rounded-lg text-green-300 text-sm font-bold transition shadow-lg shadow-green-500/10 flex items-center gap-2">
@@ -1548,9 +1793,9 @@
         }[this.currentFilter] || '#64748b';
 
         return `
-          <main class="flex-1 overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8 flex flex-col">
-            <div class="max-w-5xl mx-auto flex-1 w-full">
-              <div class="flex justify-between items-center mb-8">
+          <main class="app-main flex-1 overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8 flex flex-col min-w-0">
+            <div class="max-w-5xl mx-auto flex-1 w-full min-w-0">
+              <div class="filter-heading-row flex justify-between items-center mb-8">
                 <div>
                   <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">Entrées ${filterLabel}</h2>
                   ${this.currentGameFilter ? `<p class="text-slate-400 mt-2 text-lg">${this.currentGameFilter}</p>` : ''}
@@ -1574,16 +1819,16 @@
                       <h3 class="text-2xl font-bold text-cyan-400 mb-6 pb-3 border-b border-purple-800/50">Session ${session.number} - ${session.game_name}</h3>
                       <div class="space-y-3">
                         ${items.map(item => `
-                          <div style="border-left: 4px solid ${severityColor};" class="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-5 hover:shadow-lg transition">
-                            <div class="flex justify-between items-start gap-4">
-                              <div class="flex-1">
+                          <div style="border-left: 4px solid ${severityColor};" class="item-card bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-5 hover:shadow-lg transition">
+                            <div class="item-card-row flex justify-between items-start gap-4">
+                              <div class="flex-1 min-w-0">
                                 <p class="text-white font-semibold text-base">${item.content}</p>
-                                <div class="text-xs text-slate-400 mt-3 flex gap-4">
+                                <div class="text-xs text-slate-400 mt-3 flex flex-wrap gap-4">
                                   <span>Type: <span class="text-purple-300 font-semibold">${({bug: 'Bug', feedback: 'Retour', suggestion: 'Suggestion', task: 'Tâche', debrief: 'Débrief'}[item.type] || item.type)}</span></span>
                                   <span>Sévérité: <span class="text-purple-300 font-semibold">${({critical: 'Critique', high: 'Élevé', medium: 'Moyen', low: 'Faible', info: 'Info'}[item.severity] || item.severity)}</span></span>
                                 </div>
                               </div>
-                              <div class="flex gap-2">
+                              <div class="item-actions flex gap-2">
                                 <button class="edit-item-btn bg-purple-900/20 hover:bg-purple-900/40 border border-purple-700/30 hover:border-purple-600/50 text-purple-300 px-3 py-1.5 rounded text-xs font-semibold transition" data-item-id="${item.id}">
                                   <i data-lucide="edit-2" style="width: 14px; height: 14px; display: inline; margin-right: 4px;"></i> Modifier
                                 </button>
@@ -1630,9 +1875,9 @@
         });
 
         return `
-          <main class="flex-1 overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8 flex flex-col">
-            <div class="max-w-5xl mx-auto flex-1 w-full">
-              <div class="flex justify-between items-center mb-8">
+          <main class="app-main flex-1 overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8 flex flex-col min-w-0">
+            <div class="max-w-5xl mx-auto flex-1 w-full min-w-0">
+              <div class="filter-heading-row flex justify-between items-center mb-8">
                 <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">${this.currentGameFilter}</h2>
                 <button id="btn-close-game-filter" class="bg-slate-700/50 hover:bg-slate-700 border border-slate-600/50 px-4 py-2 rounded-lg text-slate-300 text-sm font-semibold transition">
                   <i data-lucide="x" style="width: 18px; height: 18px; display: inline; margin-right: 6px;"></i> Fermer
@@ -1646,19 +1891,19 @@
               ` : `
                 <div class="space-y-3">
                   ${allGameItems.map(item => `
-                    <div style="border-left: 4px solid ${this.getSeverityHexColor(item.severity)};" class="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-5 hover:shadow-lg transition">
-                      <div class="flex justify-between items-start gap-4">
-                        <div class="flex-1">
+                    <div style="border-left: 4px solid ${this.getSeverityHexColor(item.severity)};" class="item-card bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-5 hover:shadow-lg transition">
+                      <div class="item-card-row flex justify-between items-start gap-4">
+                        <div class="flex-1 min-w-0">
                           <div class="flex items-start gap-3">
                             <p class="text-white font-semibold text-base flex-1">${item.content}</p>
                             <span class="text-xs text-slate-500 bg-slate-700/50 px-2 py-1 rounded whitespace-nowrap">S${item.sessionNumber}</span>
                           </div>
-                          <div class="text-xs text-slate-400 mt-3 flex gap-4">
+                          <div class="text-xs text-slate-400 mt-3 flex flex-wrap gap-4">
                             <span>Type: <span class="text-purple-300 font-semibold">${({bug: 'Bug', feedback: 'Retour', suggestion: 'Suggestion', task: 'Tâche', debrief: 'Débrief'}[item.type] || item.type)}</span></span>
                             <span>Sévérité: <span class="text-purple-300 font-semibold">${({critical: 'Critique', high: 'Élevé', medium: 'Moyen', low: 'Faible', info: 'Info'}[item.severity] || item.severity)}</span></span>
                           </div>
                         </div>
-                        <div class="flex gap-2">
+                        <div class="item-actions flex gap-2">
                           <button class="edit-item-btn bg-purple-900/20 hover:bg-purple-900/40 border border-purple-700/30 hover:border-purple-600/50 text-purple-300 px-3 py-1.5 rounded text-xs font-semibold transition" data-item-id="${item.id}">
                             <i data-lucide="edit-2" style="width: 14px; height: 14px; display: inline; margin-right: 4px;"></i> Modifier
                           </button>
@@ -1736,7 +1981,7 @@
         return `
           <div id="modal-overlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"></div>
           <div id="modal-new-session" class="hidden fixed inset-0 flex items-center justify-center z-50">
-            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
+            <div class="modal-box bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
               <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-6">Nouvelle Session de jeu</h3>
               <div class="space-y-4">
                 <div>
@@ -1774,7 +2019,7 @@
             </div>
           </div>
           <div id="modal-add-item" class="hidden fixed inset-0 flex items-center justify-center z-50">
-            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
+            <div class="modal-box bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
               <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-6" id="modal-item-title">Ajouter une entrée</h3>
               <div class="space-y-4">
                 <div>
@@ -1799,7 +2044,7 @@
             </div>
           </div>
           <div id="modal-edit-item" class="hidden fixed inset-0 flex items-center justify-center z-50">
-            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
+            <div class="modal-box bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
               <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-6">Modifier l'entrée</h3>
               <div class="space-y-4">
                 <div>
@@ -1825,7 +2070,7 @@
             </div>
           </div>
           <div id="modal-delete-confirmation" class="hidden fixed inset-0 flex items-center justify-center z-50">
-            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-red-800/50 shadow-red-500/20">
+            <div class="modal-box bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-red-800/50 shadow-red-500/20">
               <h3 class="text-2xl font-black text-red-400 mb-4">Supprimer la session ?</h3>
               <p class="text-slate-300 mb-6">Êtes-vous sûr de vouloir supprimer cette session ? Cette action est irréversible et supprimera toutes les entrées associées.</p>
               <div class="flex gap-3 mt-8">
@@ -1835,7 +2080,7 @@
             </div>
           </div>
           <div id="modal-settings" class="hidden fixed inset-0 flex items-center justify-center z-50">
-            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-full max-w-2xl border border-purple-800/50 shadow-purple-500/20 max-h-[90vh] overflow-y-auto">
+            <div class="modal-box bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-full max-w-2xl border border-purple-800/50 shadow-purple-500/20 max-h-[90vh] overflow-y-auto">
               <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-8">Paramètres</h3>
               <div class="space-y-4">
                 <div>
@@ -1881,7 +2126,7 @@
           </div>
 
           <div id="modal-filter-games" class="hidden fixed inset-0 flex items-center justify-center z-50">
-            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-indigo-800/50 shadow-indigo-500/20">
+            <div class="modal-box bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-indigo-800/50 shadow-indigo-500/20">
               <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400 mb-6">Filtrer par Jeu</h3>
               <div id="games-list" class="space-y-2 max-h-64 overflow-y-auto">
                 ${this.getAvailableGames().map(game => `
@@ -2287,7 +2532,6 @@
         if (!selectedSession) return;
 
         this.selectedSessionId = selectedSessionId;
-        document.getElementById('modal-item-title').textContent = 'Sélectionner le type d\'entrée';
         
         // Create a temporary modal for type selection
         const modalOverlay = document.getElementById('modal-overlay');
@@ -2298,7 +2542,7 @@
         typeSelection.id = 'modal-type-selection';
         typeSelection.className = 'hidden fixed inset-0 flex items-center justify-center z-50';
         typeSelection.innerHTML = `
-          <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
+          <div class="modal-box bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
             <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-6">Sélectionner le type</h3>
             <div class="grid grid-cols-2 gap-3">
               <button class="type-select-btn bg-gradient-to-r from-red-900/40 to-red-800/40 border border-red-700/30 hover:border-red-600/50 hover:from-red-900/60 hover:to-red-800/60 px-4 py-3 rounded-lg text-red-300 text-sm font-bold transition" data-type="bug">Bug</button>
@@ -2317,6 +2561,9 @@
         typeSelection.querySelectorAll('.type-select-btn').forEach(btn => {
           btn.addEventListener('click', (e) => {
             this.currentItemType = e.target.closest('button').dataset.type;
+            const titles = { bug: 'Ajouter un bug', feedback: 'Ajouter une info', suggestion: 'Ajouter une suggestion', task: 'Ajouter un log' };
+            const titleEl = document.getElementById('modal-item-title');
+            if (titleEl) titleEl.textContent = titles[this.currentItemType] || 'Ajouter une entrée';
             typeSelection.remove();
             this.showModal('modal-add-item');
           });
