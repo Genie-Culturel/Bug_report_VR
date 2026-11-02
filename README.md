@@ -4,7 +4,7 @@
 
 # 👉 [https://genie-culturel.github.io/Bug_report_VR/](https://genie-culturel.github.io/Bug_report_VR/)
 
-Outil web pour gérer les sessions de playtest VR : création de sessions, saisie de bugs, feedbacks et remarques en direct, synchronisation avec Google Sheets.
+Outil web pour gérer les sessions de playtest VR : création de sessions, saisie de bugs, feedbacks et remarques en direct, synchronisation avec Supabase.
 
 ---
 
@@ -12,9 +12,9 @@ Outil web pour gérer les sessions de playtest VR : création de sessions, saisi
 
 - Gestion des sessions de playtest (jeu, date, panel, prise de notes)
 - Saisie structurée des retours : bugs, feedbacks, questions, remarques
-- Chronométrage et suivi du temps écoulé pendant la session
-- Export et synchronisation des données vers Google Sheets
-- Interface légère, utilisable directement dans le navigateur
+- Tri du journal par criticité, persisté via `bug_entries.position`
+- Export JSON / journal texte
+- Interface légère, utilisable directement dans le navigateur (un seul `docs/index.html`)
 
 ## Utilisation
 
@@ -42,7 +42,7 @@ https://genie-culturel.github.io/Bug_report_VR/?game=<nom_du_jeu>&date=YYYY-MM-D
 | `panel` | Nombre de joueurs | `5` | Non |
 | `gm` | Nom du GM/preneur de notes | `GM-423` | Non |
 | `remarks` | Remarques générales | `Session test` | Non |
-| `ref` | ID de référence externe | `session-123` | Non |
+| `ref` | ID de référence externe (`bug_sessions.ref`) | `session-123` | Non |
 | `autostart` | Créer et démarrer automatiquement | `1` | Non |
 
 **Comportement:**
@@ -50,10 +50,11 @@ https://genie-culturel.github.io/Bug_report_VR/?game=<nom_du_jeu>&date=YYYY-MM-D
 - Si seul `game` est présent : ouvre le formulaire de nouvelle session avec le champ `game` pré-rempli
 - Si `autostart=1` : crée et démarre la session automatiquement, l'utilisateur arrive directement sur "Ajouter une entrée"
 - **Détection de doublons** : évite de créer des sessions en double
-  - Par `ref` : si une session avec `[ref:xxx]` dans les remarques existe déjà, elle est ouverte
-  - Par `game`+`date`+`time` : si une session identique existe, elle est ouverte
-- L'URL est nettoyée après traitement (pas de recréation au rechargement)
-- Les paramètres sont préservés durant l'authentification
+  - Par `ref` : colonne unique `bug_sessions.ref`
+  - Sinon par `game` + `date` + `time`
+- L'URL est nettoyée après traitement (`history.replaceState`, pas de recréation au rechargement)
+- Les paramètres sont préservés durant l'authentification (PIN)
+- Si Supabase est injoignable : message **« Impossible de charger les données, réessaie »** + bouton Réessayer. Aucune écriture n'est tentée.
 
 **Exemple d'URL complète:**
 ```
@@ -74,12 +75,23 @@ sessionUrl.searchParams.set('autostart', '1');
 window.open(sessionUrl.toString(), '_blank');
 ```
 
+## Stockage (Supabase)
+
+Projet `gm-vrcenter` (`https://vxeprhyswkqugyewpwfm.supabase.co`). Client `supabase-js` chargé depuis un CDN, sans build.
+
+| Table | Rôle |
+|---|---|
+| `bug_sessions` | Une ligne par session de jeu |
+| `bug_entries` | Une ligne par entrée (Bug / Info / Suggestion / Log) |
+
+Les écritures sont des insert / update / delete **par ligne**. L'application ne réécrit jamais le jeu de données entier.
+
 ## Structure du dépôt
 
 | Dossier / fichier | Description |
 |---|---|
 | `docs/` | Version déployée sur GitHub Pages |
-| `VRC - SM - V4.html` | Dernière version source de l'application |
+| `VRC - SM - V5.html` | Ancienne version source |
 | `edit/` | Versions antérieures et fichiers de développement |
 
 ---

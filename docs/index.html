@@ -1,11 +1,12 @@
 <!doctype html>
 <html lang="fr">
- <head><script>window["__codeletBootstrap__"]=JSON.parse('{"A":"A","B":"20260701-05-1ec4861"}');</script><script src="/_sdk/f432b76fb310b513.telemetry_sdk.js" integrity="sha512-9FJQ55EKmmqhyyik8BhrMVfm0+iYYfb8uOlRsjtkxJMEI97qOVEI4PnHohDjQAtvAep0IOEpdQ64eki0sz62ug=="></script>
+ <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bug report VR</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; }
     html, body { 
@@ -32,7 +33,10 @@
   </style>
   <script>
     const STORAGE_KEY = 'vrc_playtest_manager';
-    const VERSION = '1.120';
+    const VERSION = '2.0.0';
+    const SUPABASE_URL = 'https://vxeprhyswkqugyewpwfm.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_COByzOZPOYT1_9zELSfo4w_EpEhOc5u';
+    const LOAD_ERROR_MESSAGE = 'Impossible de charger les données, réessaie';
 
     // ===== AUTH MANAGER =====
     const ACCESS_PIN = '1950';
@@ -60,242 +64,317 @@
     }
     const authManager = new AuthManager();
 
-    // ===== GOOGLE SHEETS ADAPTER =====
-    class GoogleSheetsAdapter {
+    // ===== SUPABASE ADAPTER (per-row, never rewrites the whole dataset) =====
+    class SupabaseAdapter {
       constructor() {
         this.isReady = false;
+        this.loadSucceeded = false;
         this.data = { sessions: [], items: [] };
         this.onDataChangeCallback = null;
         this.lastError = null;
-        // Configuration Google Sheets
-        this.SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxnuK6htbwuLj0sKSYClIxfGYHt5v_-hjf-VnR8XQqIBq778L0wtPd2j90mLPnVEnEq/exec';
-        this.SHEET_ID = '1FZ3Bskr59Na8Xnh4SCbw4ZZ5kmzdcagF9wMJYixoFzY';
-        this.AUTH_TOKEN = 'vrc_secret_2026_changeme_SECURELY';
+        if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+          this.lastError = 'supabase-js not loaded';
+          this.client = null;
+        } else {
+          this.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+      }
+
+      assertWritable() {
+        if (!this.isReady) throw new Error('Storage not initialized');
+        if (!this.loadSucceeded) throw new Error(LOAD_ERROR_MESSAGE);
+        if (!this.client) throw new Error(LOAD_ERROR_MESSAGE);
+      }
+
+      notify() {
+        if (this.onDataChangeCallback) {
+          this.onDataChangeCallback(this.data);
+        }
+      }
+
+      normalizeTime(value) {
+        if (!value) return '';
+        const str = String(value).trim();
+        const match = str.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+        if (!match) return str;
+        const hh = match[1].padStart(2, '0');
+        const mm = match[2];
+        const ss = (match[3] || '00');
+        return `${hh}:${mm}:${ss}`;
+      }
+
+      normalizeTimeShort(value) {
+        const full = this.normalizeTime(value);
+        return full ? full.slice(0, 5) : '';
+      }
+
+      mapSession(row, number = 0) {
+        const createdAt = row.created_at || new Date().toISOString();
+        return {
+          id: row.id,
+          ref: row.ref || '',
+          vr_session_id: row.vr_session_id || null,
+          number,
+          game_name: row.game || '',
+          date: row.session_date || '',
+          panel_size: parseInt(row.panel, 10) || 0,
+          note_taker: row.gm || '',
+          remarks: row.remarks || '',
+          start_time: this.normalizeTime(row.session_time),
+          start_timestamp: createdAt ? new Date(createdAt).getTime() : Date.now(),
+          is_active: true,
+          duration: '00:00:00',
+          created_at: createdAt
+        };
+      }
+
+      mapEntry(row) {
+        const extra = row.extra && typeof row.extra === 'object' ? row.extra : {};
+        const archived = row.status === 'archived' || row.criticality === 'archived';
+        return {
+          id: row.id,
+          type: row.category || extra.type || 'bug',
+          severity: archived ? 'archived' : (row.criticality || extra.severity || 'info'),
+          content: row.description || '',
+          session_id: row.bug_session_id,
+          position: Number.isInteger(row.position) ? row.position : 0,
+          status: row.status || 'open',
+          game_name: extra.game_name || '',
+          session_date: extra.session_date || '',
+          elapsed_time: extra.elapsed_time || '00:00:00',
+          was_added_during_session: extra.was_added_during_session === true || extra.was_added_during_session === 'TRUE',
+          created_at: row.created_at || new Date().toISOString()
+        };
+      }
+
+      assignSessionNumbers() {
+        const ordered = [...this.data.sessions].sort((a, b) => {
+          const ta = new Date(a.created_at).getTime();
+          const tb = new Date(b.created_at).getTime();
+          return ta - tb;
+        });
+        ordered.forEach((session, index) => {
+          session.number = index + 1;
+        });
+      }
+
+      sessionToRow(session) {
+        const time = this.normalizeTime(session.start_time) || null;
+        return {
+          ref: session.ref ? String(session.ref) : null,
+          game: session.game_name,
+          session_date: session.date,
+          session_time: time,
+          panel: session.panel_size != null && session.panel_size !== '' ? String(session.panel_size) : null,
+          gm: session.note_taker || null,
+          remarks: session.remarks || null
+        };
+      }
+
+      itemToRow(item) {
+        const archived = item.severity === 'archived' || item.status === 'archived';
+        const criticality = archived
+          ? (item.severity && item.severity !== 'archived' ? item.severity : 'info')
+          : (item.severity || 'info');
+        return {
+          bug_session_id: item.session_id,
+          description: item.content,
+          criticality,
+          category: item.type || null,
+          position: Number.isInteger(item.position) ? item.position : 0,
+          status: archived ? 'archived' : (item.status || 'open'),
+          extra: {
+            elapsed_time: item.elapsed_time || '00:00:00',
+            was_added_during_session: !!item.was_added_during_session,
+            game_name: item.game_name || '',
+            session_date: item.session_date || ''
+          }
+        };
       }
 
       async initialize() {
         try {
-          console.log('🔄 Initializing Google Sheets adapter...');
-          // Récupérer les données existantes
-          const response = await fetch(this.SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-              action: 'getRawData',
-              auth: this.AUTH_TOKEN
-            })
-          });
-
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+          if (!this.client) {
+            throw new Error(LOAD_ERROR_MESSAGE);
           }
+          console.log('Initializing Supabase adapter...');
+          const { data: sessions, error: sessionError } = await this.client
+            .from('bug_sessions')
+            .select('*')
+            .order('created_at', { ascending: true });
+          if (sessionError) throw sessionError;
 
-          const result = await response.json();
-          
-          if (result.success && result.data) {
-            // Parser les données du sheet
-            this.parseSheetData(result.data);
-          }
-          
+          const { data: entries, error: entryError } = await this.client
+            .from('bug_entries')
+            .select('*')
+            .order('position', { ascending: true })
+            .order('created_at', { ascending: true });
+          if (entryError) throw entryError;
+
+          this.data = {
+            sessions: (sessions || []).map((row) => this.mapSession(row)),
+            items: (entries || []).map((row) => this.mapEntry(row))
+          };
+          this.assignSessionNumbers();
           this.isReady = true;
-          console.log('✓ Google Sheets initialized');
+          this.loadSucceeded = true;
+          this.lastError = null;
+          console.log('Supabase initialized');
         } catch (error) {
-          console.error('Failed to initialize Google Sheets:', error);
-          this.lastError = error.message;
-          // Continue anyway with empty data instead of throwing
+          console.error('Failed to initialize Supabase:', error);
+          this.lastError = error.message || String(error);
           this.isReady = true;
+          this.loadSucceeded = false;
           this.data = { sessions: [], items: [] };
+          throw new Error(LOAD_ERROR_MESSAGE);
         }
       }
 
-      parseSheetData(rawData) {
-        this.data = { sessions: [], items: [] };
-        // Premier élément est l'en-tête, on ignore
-        if (!Array.isArray(rawData) || rawData.length <= 1) return;
-
-        for (let i = 1; i < rawData.length; i++) {
-          const row = rawData[i];
-          if (!row || row.length === 0) continue;
-
-          const idValue = String(row[0] || '').trim();
-          const gameNameValue = String(row[2] || '').trim();
-          const sessionIdValue = String(row[15] || '').trim();
-          const itemTypeValue = String(row[12] || '').trim();
-          
-          // C'est une session si: id existe ET game_name existe ET type vide (colonne 12)
-          if (idValue && gameNameValue && !itemTypeValue) {
-            // Parse start_timestamp - must be a number
-            let startTimestamp = parseInt(row[8]) || 0;
-            if (isNaN(startTimestamp) || startTimestamp === 0) {
-              startTimestamp = Date.now(); // Fallback
-            }
-            
-            this.data.sessions.push({
-              id: idValue,
-              number: parseInt(row[1]) || 0,
-              game_name: gameNameValue,
-              date: String(row[3] || '').trim(),
-              panel_size: parseInt(row[4]) || 0,
-              note_taker: String(row[5] || '').trim(),
-              remarks: String(row[6] || '').trim(),
-              start_time: String(row[7] || '').trim(),
-              start_timestamp: startTimestamp,
-              is_active: row[9] === 'TRUE' || row[9] === true,
-              duration: this.ensureTimeFormat(String(row[10] || '00:00:00')),
-              created_at: String(row[11] || new Date().toISOString())
-            });
-          } 
-          // C'est un item si: id existe ET type existe ET session_id existe
-          else if (idValue && itemTypeValue && sessionIdValue) {
-            this.data.items.push({
-              id: idValue,
-              type: itemTypeValue,
-              severity: String(row[13] || 'info').trim(),
-              content: String(row[14] || '').trim(),
-              session_id: sessionIdValue,
-              game_name: String(row[16] || '').trim(),
-              session_date: String(row[17] || '').trim(),
-              elapsed_time: this.ensureTimeFormat(String(row[18] || '00:00:00')),
-              was_added_during_session: row[19] === 'TRUE' || row[19] === true,
-              created_at: String(row[20] || new Date().toISOString())
-            });
-          }
-        }
-      }
-
-      ensureTimeFormat(timeStr) {
-        // Ensure time is in HH:MM:SS format, handle various bad formats
-        const str = String(timeStr || '').trim();
-        
-        // Already in good format
-        if (/^\d{2}:\d{2}:\d{2}$/.test(str)) {
-          return str;
-        }
-        
-        // ISO date string like "1899-12-29T23:00:23.000Z"
-        if (str.includes('T')) {
-          try {
-            const timePart = str.split('T')[1].split('.')[0]; // Extract HH:MM:SS
-            if (/^\d{2}:\d{2}:\d{2}$/.test(timePart)) {
-              return timePart;
-            }
-          } catch (e) {}
-        }
-        
-        // Default fallback
-        return '00:00:00';
+      isSessionRecord(record) {
+        return record && record.session_id === undefined && record.bug_session_id === undefined;
       }
 
       async create(record) {
-        if (!this.isReady) throw new Error('Storage not initialized');
+        this.assertWritable();
         try {
-          // Ajouter le record en mémoire
-          if (record.is_active !== undefined) {
-            this.data.sessions.push(record);
-          } else if (record.session_id !== undefined) {
-            this.data.items.push(record);
+          if (this.isSessionRecord(record)) {
+            const row = this.sessionToRow(record);
+            const { data, error } = await this.client
+              .from('bug_sessions')
+              .insert(row)
+              .select()
+              .single();
+            if (error) {
+              const isDuplicate = error.code === '23505' || /duplicate/i.test(error.message || '');
+              if (isDuplicate && row.ref) {
+                const existing = await this.client.from('bug_sessions').select('*').eq('ref', row.ref).maybeSingle();
+                if (existing.error) throw existing.error;
+                if (existing.data) {
+                  const mappedExisting = this.mapSession(existing.data);
+                  if (!this.data.sessions.find(s => s.id === mappedExisting.id)) {
+                    this.data.sessions.push(mappedExisting);
+                    this.assignSessionNumbers();
+                  }
+                  this.notify();
+                  return mappedExisting;
+                }
+              }
+              throw error;
+            }
+            const mapped = this.mapSession(data);
+            this.data.sessions.push(mapped);
+            this.assignSessionNumbers();
+            this.notify();
+            return mapped;
           }
-          
-          // Envoyer à Google Sheets
-          await this.syncToSheet();
-          if (this.onDataChangeCallback) {
-            this.onDataChangeCallback(this.data);
-          }
+
+          const row = this.itemToRow(record);
+          const { data, error } = await this.client
+            .from('bug_entries')
+            .insert(row)
+            .select()
+            .single();
+          if (error) throw error;
+          const mapped = this.mapEntry(data);
+          this.data.items.push(mapped);
+          this.notify();
+          return mapped;
         } catch (error) {
           console.error('Create failed:', error);
-          this.lastError = error.message;
+          this.lastError = error.message || String(error);
           throw error;
         }
       }
 
       async update(record) {
-        if (!this.isReady) throw new Error('Storage not initialized');
+        this.assertWritable();
         try {
-          if (record.is_active !== undefined) {
+          if (this.isSessionRecord(record)) {
+            const row = this.sessionToRow(record);
+            row.updated_at = new Date().toISOString();
+            const { data, error } = await this.client
+              .from('bug_sessions')
+              .update(row)
+              .eq('id', record.id)
+              .select()
+              .single();
+            if (error) throw error;
+            const mapped = this.mapSession(data, record.number);
             const idx = this.data.sessions.findIndex(s => s.id === record.id);
-            if (idx >= 0) {
-              this.data.sessions[idx] = record;
-            }
-          } else if (record.session_id !== undefined) {
-            const idx = this.data.items.findIndex(i => i.id === record.id);
-            if (idx >= 0) {
-              this.data.items[idx] = record;
-            }
+            if (idx >= 0) this.data.sessions[idx] = { ...mapped, number: record.number || mapped.number };
+            this.notify();
+            return mapped;
           }
-          
-          await this.syncToSheet();
-          if (this.onDataChangeCallback) {
-            this.onDataChangeCallback(this.data);
-          }
+
+          const row = this.itemToRow(record);
+          row.updated_at = new Date().toISOString();
+          const { data, error } = await this.client
+            .from('bug_entries')
+            .update(row)
+            .eq('id', record.id)
+            .select()
+            .single();
+          if (error) throw error;
+          const mapped = this.mapEntry(data);
+          const idx = this.data.items.findIndex(i => i.id === record.id);
+          if (idx >= 0) this.data.items[idx] = mapped;
+          this.notify();
+          return mapped;
         } catch (error) {
           console.error('Update failed:', error);
-          this.lastError = error.message;
+          this.lastError = error.message || String(error);
           throw error;
         }
       }
 
       async delete(record) {
-        if (!this.isReady) throw new Error('Storage not initialized');
+        this.assertWritable();
         try {
-          if (record.is_active !== undefined) {
+          if (this.isSessionRecord(record)) {
+            const { error } = await this.client
+              .from('bug_sessions')
+              .delete()
+              .eq('id', record.id);
+            if (error) throw error;
             this.data.sessions = this.data.sessions.filter(s => s.id !== record.id);
-          } else if (record.session_id !== undefined) {
-            this.data.items = this.data.items.filter(i => i.id !== record.id);
+            this.data.items = this.data.items.filter(i => i.session_id !== record.id);
+            this.assignSessionNumbers();
+            this.notify();
+            return;
           }
-          
-          await this.syncToSheet();
-          if (this.onDataChangeCallback) {
-            this.onDataChangeCallback(this.data);
-          }
+
+          const { error } = await this.client
+            .from('bug_entries')
+            .delete()
+            .eq('id', record.id);
+          if (error) throw error;
+          this.data.items = this.data.items.filter(i => i.id !== record.id);
+          this.notify();
         } catch (error) {
           console.error('Delete failed:', error);
-          this.lastError = error.message;
+          this.lastError = error.message || String(error);
           throw error;
         }
       }
 
-      async syncToSheet() {
-        try {
-          const allRows = [];
-          
-          // Headers
-          allRows.push(['id', 'number', 'game_name', 'date', 'panel_size', 'note_taker', 'remarks', 'start_time', 'start_timestamp', 'is_active', 'duration', 'created_at', 'type', 'severity', 'content', 'session_id', 'game_name_item', 'session_date', 'elapsed_time', 'was_added_during_session']);
-          
-          // Sessions
-          this.data.sessions.forEach(s => {
-            allRows.push([
-              s.id, s.number, s.game_name, s.date, s.panel_size, s.note_taker, s.remarks, 
-              s.start_time, s.start_timestamp, s.is_active ? 'TRUE' : 'FALSE', s.duration, s.created_at,
-              '', '', '', '', '', '', '', ''
-            ]);
-          });
-          
-          // Items
-          this.data.items.forEach(i => {
-            allRows.push([
-              i.id, '', '', '', '', '', '', '', '', '',
-              '', '', i.type, i.severity, i.content, i.session_id, i.game_name, i.session_date, i.elapsed_time, i.was_added_during_session ? 'TRUE' : 'FALSE'
-            ]);
-          });
-
-          const response = await fetch(this.SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-              action: 'setRawData',
-              auth: this.AUTH_TOKEN,
-              data: JSON.stringify(allRows)
-            })
-          });
-
-          const result = await response.json();
-          if (!result.success) {
-            throw new Error(result.error || 'Failed to sync to sheet');
-          }
-        } catch (error) {
-          console.error('Sync to sheet failed:', error);
-          throw error;
+      async updatePositions(updates) {
+        this.assertWritable();
+        const results = await Promise.all(updates.map(({ id, position }) =>
+          this.client
+            .from('bug_entries')
+            .update({ position, updated_at: new Date().toISOString() })
+            .eq('id', id)
+        ));
+        const failed = results.find(r => r.error);
+        if (failed && failed.error) {
+          this.lastError = failed.error.message;
+          throw failed.error;
         }
+        updates.forEach(({ id, position }) => {
+          const item = this.data.items.find(i => i.id === id);
+          if (item) item.position = position;
+        });
+        this.notify();
       }
 
       setOnDataChange(callback) {
@@ -311,7 +390,7 @@
       }
     }
 
-    const storage = new GoogleSheetsAdapter();
+    const storage = new SupabaseAdapter();
 
     // ===== URL PREFILL MANAGER =====
     class URLPrefillManager {
@@ -360,19 +439,25 @@
         return false;
       }
 
+      normalizeTimeShort(value) {
+        if (!value) return '';
+        const match = String(value).trim().match(/(\d{1,2}):(\d{2})/);
+        if (!match) return String(value).trim();
+        return `${match[1].padStart(2, '0')}:${match[2]}`;
+      }
+
       checkForDuplicate(sessions) {
-        // Check for duplicate by ref
         if (this.params.ref) {
-          const byRef = sessions.find(s => s.remarks && s.remarks.includes(`[ref:${this.params.ref}]`));
+          const byRef = sessions.find(s => s.ref && s.ref === this.params.ref);
           if (byRef) return byRef;
         }
 
-        // Check for duplicate by game + date + time
         if (this.params.game && this.params.date && this.params.time) {
-          const byGameDateTime = sessions.find(s => 
+          const wantedTime = this.normalizeTimeShort(this.params.time);
+          const byGameDateTime = sessions.find(s =>
             s.game_name === this.params.game &&
             s.date === this.params.date &&
-            s.start_time === this.params.time
+            this.normalizeTimeShort(s.start_time) === wantedTime
           );
           if (byGameDateTime) return byGameDateTime;
         }
@@ -403,6 +488,8 @@
         this.sortJournalBySeverity = false;
         this.prefillPending = false;
         this.openPrefillModal = false;
+        this.pendingRef = '';
+        this.pendingTime = '';
         this.initializeApp();
       }
 
@@ -423,10 +510,10 @@
           const app = document.getElementById('app');
           app.innerHTML = `
             <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-red-950 to-red-900">
-              <div class="text-center">
+              <div class="text-center px-6">
                 <i data-lucide="alert-circle" style="width: 64px; height: 64px; margin: 0 auto 16px; color: #fca5a5;"></i>
                 <h1 class="text-3xl font-black text-red-200 mb-4">Erreur de chargement</h1>
-                <p class="text-red-300 mb-8">${error.message}</p>
+                <p class="text-red-300 mb-8">${LOAD_ERROR_MESSAGE}</p>
                 <button id="btn-retry" class="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 px-6 py-3 rounded-lg text-white font-bold transition shadow-lg shadow-red-500/20">
                   Réessayer
                 </button>
@@ -441,68 +528,57 @@
       }
 
       async handleURLPrefill() {
-        // Check if we have stored params from before auth
-        const hadStoredParams = urlPrefillManager.retrieveStoredParams();
-        
-        // Check if we have params to process
+        urlPrefillManager.retrieveStoredParams();
+
         if (!urlPrefillManager.hasParams()) {
           return;
         }
 
-        // Guard: ensure data is fully loaded before processing
-        if (!storage.isReady) {
-          console.warn('Storage not ready, skipping URL prefill');
+        if (!authManager.isAuthenticated) {
+          urlPrefillManager.storeParams();
           return;
         }
 
-        const params = urlPrefillManager.params;
+        if (!storage.loadSucceeded) {
+          urlPrefillManager.storeParams();
+          throw new Error(LOAD_ERROR_MESSAGE);
+        }
 
-        // Check for existing session
+        const params = urlPrefillManager.params;
         const existingSession = urlPrefillManager.checkForDuplicate(this.data.sessions);
-        
+
         if (existingSession) {
-          // Open existing session instead of creating a new one
           this.selectedSessionId = existingSession.id;
           urlPrefillManager.cleanURL();
           urlPrefillManager.processed = true;
           return;
         }
 
-        // If autostart, create session directly
         if (params.autostart) {
           await this.createSessionFromPrefill(params);
           urlPrefillManager.cleanURL();
           urlPrefillManager.processed = true;
         } else {
-          // Otherwise, just prefill the form (will be done in render)
           this.prefillPending = true;
         }
       }
 
       async createSessionFromPrefill(params) {
-        try {
-          // Build remarks with ref if provided
-          let remarks = params.remarks || '';
-          if (params.ref) {
-            remarks = remarks ? `${remarks} [ref:${params.ref}]` : `[ref:${params.ref}]`;
-          }
-
-          const sessionData = {
-            gameName: params.game,
-            date: params.date,
-            panelSize: parseInt(params.panel) || 0,
-            noteTaker: params.gm || 'N/A',
-            remarks: remarks,
-            time: params.time // Pass time if provided for duplicate check
-          };
-
-          const sessionId = await this.addSession(sessionData);
-          this.selectedSessionId = sessionId;
-        } catch (error) {
-          console.error('Failed to create session from prefill:', error);
-          // Fall back to showing the form
-          this.prefillPending = true;
+        if (!storage.loadSucceeded) {
+          throw new Error(LOAD_ERROR_MESSAGE);
         }
+        const today = new Date().toISOString().slice(0, 10);
+        const sessionData = {
+          gameName: params.game,
+          date: params.date || today,
+          panelSize: parseInt(params.panel, 10) || 0,
+          noteTaker: params.gm || 'N/A',
+          remarks: params.remarks || '',
+          time: params.time || '',
+          ref: params.ref || ''
+        };
+        const sessionId = await this.addSession(sessionData);
+        this.selectedSessionId = sessionId;
       }
 
       loadData() {
@@ -513,48 +589,66 @@
         this.render();
       }
 
+      async persistJournalOrder(sessionId) {
+        let sessionItems = this.data.items.filter(i => i.session_id === sessionId);
+        if (sessionItems.length === 0) return;
+
+        if (this.sortJournalBySeverity) {
+          const severityOrder = { critical: 0, high: 1, medium: 2, low: 3, info: 4, archived: 5 };
+          sessionItems.sort((a, b) => {
+            const aSeverity = severityOrder[a.severity] ?? 6;
+            const bSeverity = severityOrder[b.severity] ?? 6;
+            if (aSeverity !== bSeverity) return aSeverity - bSeverity;
+            return new Date(a.created_at) - new Date(b.created_at);
+          });
+        } else {
+          sessionItems.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        }
+
+        const updates = sessionItems.map((item, index) => ({ id: item.id, position: index }));
+        await storage.updatePositions(updates);
+      }
+
       async addSession(sessionData) {
         const now = new Date();
-        // Trouver le numéro le plus grand existant
-        const maxNumber = this.data.sessions.length > 0 
-          ? Math.max(...this.data.sessions.map(s => s.number || 0))
-          : 0;
-        
+        const startTime = sessionData.time
+          ? storage.normalizeTime(sessionData.time)
+          : now.toTimeString().slice(0, 8);
+
         const sessionToCreate = {
-          id: Date.now().toString(),
-          number: maxNumber + 1,
+          ref: sessionData.ref || '',
           game_name: sessionData.gameName,
           date: sessionData.date,
           panel_size: sessionData.panelSize,
           note_taker: sessionData.noteTaker,
           remarks: sessionData.remarks,
-          start_time: now.toLocaleTimeString('fr-FR'),
-          start_timestamp: now.getTime(),
-          is_active: true,
-          duration: '00:00:00',
-          created_at: new Date().toISOString()
+          start_time: startTime
         };
 
-        await storage.create(sessionToCreate);
-        this.selectedSessionId = sessionToCreate.id;
-        return sessionToCreate.id;
+        const created = await storage.create(sessionToCreate);
+        this.selectedSessionId = created.id;
+        return created.id;
       }
 
       async addItem(itemData) {
         const session = this.data.sessions.find(s => s.id === itemData.sessionId);
         const elapsedTime = session && session.is_active ? this.getSessionElapsedTime(itemData.sessionId) : (session?.duration || '00:00:00');
-        
+        const sessionItems = this.data.items.filter(i => i.session_id === itemData.sessionId);
+        const nextPosition = sessionItems.length > 0
+          ? Math.max(...sessionItems.map(i => i.position || 0)) + 1
+          : 0;
+
         const itemToCreate = {
-          id: Date.now().toString() + Math.random(),
           type: itemData.type,
           severity: itemData.severity || 'info',
           content: itemData.content,
           session_id: itemData.sessionId,
+          position: nextPosition,
+          status: itemData.status || 'open',
           game_name: session?.game_name || '',
           session_date: session?.date || '',
           elapsed_time: elapsedTime,
-          was_added_during_session: session?.is_active ? 'TRUE' : 'FALSE',
-          created_at: new Date().toISOString()
+          was_added_during_session: !!(session && session.is_active)
         };
 
         await storage.create(itemToCreate);
@@ -571,7 +665,7 @@
       async archiveItem(itemId) {
         const item = this.data.items.find(i => i.id === itemId);
         if (item) {
-          const updated = { ...item, severity: 'archived' };
+          const updated = { ...item, severity: 'archived', status: 'archived' };
           await storage.update(updated);
         }
       }
@@ -612,13 +706,6 @@
         }
         
         try {
-          // Delete all associated items
-          const itemsToDelete = this.data.items.filter(i => i.session_id === sessionId);
-          for (const item of itemsToDelete) {
-            await storage.delete(item);
-          }
-          
-          // Delete session
           const session = this.data.sessions.find(s => s.id === sessionId);
           if (session) {
             await storage.delete(session);
@@ -630,6 +717,7 @@
           }
         } catch (error) {
           console.error('Delete session failed:', error);
+          alert(error.message || LOAD_ERROR_MESSAGE);
           if (deleteBtn) {
             deleteBtn.disabled = false;
             deleteBtn.innerHTML = originalHTML;
@@ -717,6 +805,12 @@
             const aSeverity = severityOrder[a.severity] ?? 6;
             const bSeverity = severityOrder[b.severity] ?? 6;
             return aSeverity - bSeverity;
+          });
+        } else {
+          sessionItems.sort((a, b) => {
+            const pos = (a.position || 0) - (b.position || 0);
+            if (pos !== 0) return pos;
+            return new Date(a.created_at) - new Date(b.created_at);
           });
         }
         
@@ -859,6 +953,12 @@
             const aSeverity = severityOrder[a.severity] ?? 6;
             const bSeverity = severityOrder[b.severity] ?? 6;
             return aSeverity - bSeverity;
+          });
+        } else {
+          sessionItems.sort((a, b) => {
+            const pos = (a.position || 0) - (b.position || 0);
+            if (pos !== 0) return pos;
+            return new Date(a.created_at) - new Date(b.created_at);
           });
         }
 
@@ -1053,15 +1153,9 @@
         if (params.date && dateInput) dateInput.value = params.date;
         if (params.panel && panelInput) panelInput.value = params.panel;
         if (params.gm && gmInput) gmInput.value = params.gm;
-        
-        // Fill remarks with ref if provided
-        if (remarksInput) {
-          let remarks = params.remarks || '';
-          if (params.ref) {
-            remarks = remarks ? `${remarks} [ref:${params.ref}]` : `[ref:${params.ref}]`;
-          }
-          remarksInput.value = remarks;
-        }
+        if (remarksInput) remarksInput.value = params.remarks || '';
+        this.pendingRef = params.ref || '';
+        this.pendingTime = params.time || '';
       }
 
       render() {
@@ -1146,9 +1240,28 @@
         });
       }
 
-      attemptAuth(pin, errorDiv) {
+      async attemptAuth(pin, errorDiv) {
         if (authManager.authenticate(pin)) {
-          this.render();
+          try {
+            await this.handleURLPrefill();
+            this.render();
+          } catch (error) {
+            const app = document.getElementById('app');
+            app.innerHTML = `
+              <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-red-950 to-red-900">
+                <div class="text-center px-6">
+                  <i data-lucide="alert-circle" style="width: 64px; height: 64px; margin: 0 auto 16px; color: #fca5a5;"></i>
+                  <h1 class="text-3xl font-black text-red-200 mb-4">Erreur de chargement</h1>
+                  <p class="text-red-300 mb-8">${LOAD_ERROR_MESSAGE}</p>
+                  <button id="btn-retry" class="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 px-6 py-3 rounded-lg text-white font-bold transition shadow-lg shadow-red-500/20">
+                    Réessayer
+                  </button>
+                </div>
+              </div>
+            `;
+            lucide.createIcons();
+            document.getElementById('btn-retry')?.addEventListener('click', () => location.reload());
+          }
         } else {
           errorDiv?.classList.remove('hidden');
           setTimeout(() => {
@@ -1398,7 +1511,7 @@
             </div>
 
             <div class="text-center text-xs text-slate-500 mt-12 pt-4 border-t border-slate-700/30">
-              <p>VRC Session Manager • Version 1.134 • © Julien</p>
+              <p>VRC Session Manager • Version ${VERSION} • © Julien</p>
             </div>
           </main>
         `;
@@ -1843,7 +1956,11 @@
         });
 
         // Session Management
-        document.getElementById('btn-new-session')?.addEventListener('click', () => this.showModal('modal-new-session'));
+        document.getElementById('btn-new-session')?.addEventListener('click', () => {
+          this.pendingRef = '';
+          this.pendingTime = '';
+          this.showModal('modal-new-session');
+        });
         document.getElementById('btn-save-session')?.addEventListener('click', () => this.saveNewSession());
         document.getElementById('btn-cancel-session')?.addEventListener('click', () => this.hideModal('modal-new-session'));
         document.getElementById('btn-delete-session')?.addEventListener('click', () => this.showModal('modal-delete-confirmation'));
@@ -1935,9 +2052,20 @@
           }
         });
         
-        // Toggle sort journal by severity
-        document.getElementById('btn-toggle-sort-journal')?.addEventListener('click', () => {
+        // Toggle sort journal by severity — persist the new order via position
+        document.getElementById('btn-toggle-sort-journal')?.addEventListener('click', async () => {
           this.sortJournalBySeverity = !this.sortJournalBySeverity;
+          const selectedSessionId = this.selectedSessionId
+            || (this.data.sessions.find(s => s.is_active)?.id)
+            || (this.data.sessions.length > 0 ? this.data.sessions[this.data.sessions.length - 1].id : null);
+          try {
+            if (selectedSessionId) {
+              await this.persistJournalOrder(selectedSessionId);
+            }
+          } catch (error) {
+            console.error('Failed to persist sort order:', error);
+            alert(error.message || LOAD_ERROR_MESSAGE);
+          }
           this.render();
         });
         
@@ -1995,8 +2123,17 @@
             saveBtn.textContent = 'Création en cours...';
           }
           
-          // Créer la session et récupérer son ID
-          const newSessionId = await this.addSession({ gameName, date, panelSize, noteTaker, remarks });
+          const newSessionId = await this.addSession({
+            gameName,
+            date,
+            panelSize,
+            noteTaker,
+            remarks,
+            ref: this.pendingRef || '',
+            time: this.pendingTime || ''
+          });
+          this.pendingRef = '';
+          this.pendingTime = '';
           
           // Sélectionner la nouvelle session immédiatement
           this.selectedSessionId = newSessionId;
@@ -2088,8 +2225,7 @@
           this.hideModal('modal-add-item');
         }).catch(error => {
           console.error('Erreur lors de l\'ajout:', error);
-          
-          // Réinitialiser le bouton en cas d'erreur
+          alert(error.message || LOAD_ERROR_MESSAGE);
           if (saveBtn) {
             saveBtn.disabled = false;
             saveBtn.textContent = 'Ajouter';
@@ -2199,10 +2335,8 @@
     });
   </script>
   <style>body { box-sizing: border-box; }</style>
-  <script src="/_sdk/0179d719c431a79e.data_sdk.js" type="text/javascript" integrity="sha512-OsRvJkI5GkC3MJQcgotQYotpzrMSX415GiKKgvYdxQEEkzD/fdchShO2FMSy0PJr/tiINMXOk5Vl2zAgg6bUiA=="></script>
-  <script src="/_sdk/8650958800d6c92a.element_sdk.js" type="text/javascript" integrity="sha512-zFMhEG5W24TdVhhc4yw+K4kKrl6mClLz7Nz7OlZcKY64bZTx26LpVI6mwMCarQMzfrHe8i4fBMu4fxoFej2m9g=="></script>
  </head>
  <body>
   <div id="app"></div>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a14648dd0581df5e',t:'MTc4MjkxODA3Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
