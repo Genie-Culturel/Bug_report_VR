@@ -278,8 +278,8 @@
   <script>
     const STORAGE_KEY = 'vrc_playtest_manager';
     const VERSION = '2.1.0';
-    const SUPABASE_URL = 'https://vxeprhyswkqugyewpwfm.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_COByzOZPOYT1_9zELSfo4w_EpEhOc5u';
+    const SUPABASE_URL = 'https://dnxyidnkmtrmkxucqrry.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRueHlpZG5rbXRybWt4dWNxcnJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3NTM4NTUsImV4cCI6MjA2NjMyOTg1NX0.CQNSkJFpA1y_p2tpwzvavV0Ee4Cn1WrBcEx1IhIOdJo';
     const LOAD_ERROR_MESSAGE = 'Impossible de charger les données, réessaie';
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -455,13 +455,13 @@
           }
           console.log('Initializing Supabase adapter...');
           const { data: sessions, error: sessionError } = await this.client
-            .from('bug_sessions')
+            .from('gh_bug_sessions')
             .select('*')
             .order('created_at', { ascending: true });
           if (sessionError) throw sessionError;
 
           const { data: entries, error: entryError } = await this.client
-            .from('bug_entries')
+            .from('gh_bug_entries')
             .select('*')
             .order('position', { ascending: true })
             .order('created_at', { ascending: true });
@@ -496,7 +496,7 @@
           if (this.isSessionRecord(record)) {
             const row = this.sessionToRow(record);
             let { data, error } = await this.client
-              .from('bug_sessions')
+              .from('gh_bug_sessions')
               .insert(row)
               .select()
               .single();
@@ -504,7 +504,7 @@
               console.warn('vr_session_id does not match an existing vr_sessions row; saving without vr_session_id', row.vr_session_id, error);
               const fallback = { ...row, vr_session_id: null };
               const retry = await this.client
-                .from('bug_sessions')
+                .from('gh_bug_sessions')
                 .insert(fallback)
                 .select()
                 .single();
@@ -514,7 +514,7 @@
             if (error) {
               const isDuplicate = error.code === '23505' || /duplicate/i.test(error.message || '');
               if (isDuplicate && row.ref) {
-                const existing = await this.client.from('bug_sessions').select('*').eq('ref', row.ref).maybeSingle();
+                const existing = await this.client.from('gh_bug_sessions').select('*').eq('ref', row.ref).maybeSingle();
                 if (existing.error) throw existing.error;
                 if (existing.data) {
                   const mappedExisting = this.mapSession(existing.data);
@@ -537,7 +537,7 @@
 
           const row = this.itemToRow(record);
           const { data, error } = await this.client
-            .from('bug_entries')
+            .from('gh_bug_entries')
             .insert(row)
             .select()
             .single();
@@ -560,7 +560,7 @@
             const row = this.sessionToRow(record);
             row.updated_at = new Date().toISOString();
             const { data, error } = await this.client
-              .from('bug_sessions')
+              .from('gh_bug_sessions')
               .update(row)
               .eq('id', record.id)
               .select()
@@ -576,7 +576,7 @@
           const row = this.itemToRow(record);
           row.updated_at = new Date().toISOString();
           const { data, error } = await this.client
-            .from('bug_entries')
+            .from('gh_bug_entries')
             .update(row)
             .eq('id', record.id)
             .select()
@@ -599,7 +599,7 @@
         try {
           if (this.isSessionRecord(record)) {
             const { error } = await this.client
-              .from('bug_sessions')
+              .from('gh_bug_sessions')
               .delete()
               .eq('id', record.id);
             if (error) throw error;
@@ -611,7 +611,7 @@
           }
 
           const { error } = await this.client
-            .from('bug_entries')
+            .from('gh_bug_entries')
             .delete()
             .eq('id', record.id);
           if (error) throw error;
@@ -628,7 +628,7 @@
         this.assertWritable();
         const results = await Promise.all(updates.map(({ id, position }) =>
           this.client
-            .from('bug_entries')
+            .from('gh_bug_entries')
             .update({ position, updated_at: new Date().toISOString() })
             .eq('id', id)
         ));
