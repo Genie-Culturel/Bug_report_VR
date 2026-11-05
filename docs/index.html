@@ -21,8 +21,8 @@
       height: 100%; 
       display: flex; 
       flex-direction: column;
-      background: #0f172a;
-      color: #e2e8f0;
+      background: hsl(210 40% 96.1%);
+      color: hsl(222.2 84% 4.9%);
       min-width: 0;
       overflow-x: hidden;
     }
@@ -784,12 +784,12 @@
         } catch (error) {
           const app = document.getElementById('app');
           app.innerHTML = `
-            <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-red-950 to-red-900">
+            <div class="flex h-full w-full items-center justify-center bg-white">
               <div class="text-center px-6">
-                <i data-lucide="alert-circle" style="width: 64px; height: 64px; margin: 0 auto 16px; color: #fca5a5;"></i>
-                <h1 class="text-3xl font-black text-red-200 mb-4">Erreur de chargement</h1>
-                <p class="text-red-300 mb-8">${LOAD_ERROR_MESSAGE}</p>
-                <button id="btn-retry" class="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 px-6 py-3 rounded-lg text-white font-bold transition shadow-lg shadow-red-500/20">
+                <i data-lucide="alert-circle" style="width: 64px; height: 64px; margin: 0 auto 16px; color: hsl(0 84% 60%);"></i>
+                <h1 class="text-3xl font-black text-slate-900 mb-4">Erreur de chargement</h1>
+                <p class="text-slate-600 mb-8">${LOAD_ERROR_MESSAGE}</p>
+                <button id="btn-retry" class="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg text-white font-bold transition shadow-sm">
                   Réessayer
                 </button>
               </div>
@@ -1446,16 +1446,16 @@
           urlPrefillManager.storeParams();
           
           app.innerHTML = `
-            <div class="auth-screen flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
+            <div class="auth-screen flex h-full w-full items-center justify-center" style="background: hsl(210 40% 96.1%);">
               <div class="auth-wrap text-center px-4 w-full max-w-sm">
                 <div class="mb-8">
-                  <i data-lucide="lock" style="width: 64px; height: 64px; margin: 0 auto 16px; color: #06b6d4;"></i>
-                  <h1 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400">Bug report VR</h1>
-                  <p class="text-purple-300/70 text-sm tracking-widest uppercase mt-2">Accès sécurisé</p>
+                  <i data-lucide="lock" style="width: 64px; height: 64px; margin: 0 auto 16px; color: hsl(221.2 83.2% 53.3%);"></i>
+                  <h1 class="text-4xl font-black text-slate-900">Bug report VR</h1>
+                  <p class="text-slate-500 text-sm tracking-widest uppercase mt-2">Accès sécurisé</p>
                 </div>
                 
-                <div class="auth-card bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 max-w-full border border-purple-800/50 shadow-purple-500/20">
-                  <h2 class="text-2xl font-bold text-white mb-6">Entrez le code PIN</h2>
+                <div class="auth-card bg-white rounded-lg shadow-sm p-8 w-96 max-w-full" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
+                  <h2 class="text-2xl font-bold text-slate-900 mb-6">Entrez le code PIN</h2>
                   <div class="space-y-4">
                     <input 
                       type="password" 
@@ -1464,7 +1464,7 @@
                       maxlength="4"
                       class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white text-center text-3xl tracking-widest focus:outline-none transition"
                     >
-                    <button id="btn-auth-submit" class="w-full bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 px-4 py-3 rounded-lg text-white font-bold transition shadow-lg shadow-purple-500/20">
+                    <button id="btn-auth-submit" class="w-full px-4 py-3 rounded-lg text-white font-bold transition shadow-sm" style="background: hsl(221.2 83.2% 53.3%);">
                       Accéder
                     </button>
                   </div>
@@ -1526,12 +1526,12 @@
           } catch (error) {
             const app = document.getElementById('app');
             app.innerHTML = `
-              <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-red-950 to-red-900">
+              <div class="flex h-full w-full items-center justify-center bg-white">
                 <div class="text-center px-6">
-                  <i data-lucide="alert-circle" style="width: 64px; height: 64px; margin: 0 auto 16px; color: #fca5a5;"></i>
-                  <h1 class="text-3xl font-black text-red-200 mb-4">Erreur de chargement</h1>
-                  <p class="text-red-300 mb-8">${LOAD_ERROR_MESSAGE}</p>
-                  <button id="btn-retry" class="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 px-6 py-3 rounded-lg text-white font-bold transition shadow-lg shadow-red-500/20">
+                  <i data-lucide="alert-circle" style="width: 64px; height: 64px; margin: 0 auto 16px; color: hsl(0 84% 60%);"></i>
+                  <h1 class="text-3xl font-black text-slate-900 mb-4">Erreur de chargement</h1>
+                  <p class="text-slate-600 mb-8">${LOAD_ERROR_MESSAGE}</p>
+                  <button id="btn-retry" class="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg text-white font-bold transition shadow-sm">
                     Réessayer
                   </button>
                 </div>
@@ -1560,36 +1560,36 @@
         const stats = this.getStats(this.currentGameFilter);
         const hasActiveSession = this.data.sessions.some(s => s.isActive);
         return `
-          <header class="app-header bg-gradient-to-r from-slate-950 via-purple-950 to-slate-950 border-b border-purple-800/50 px-6 py-5">
+          <header class="app-header bg-white px-6 py-5" style="border-bottom: 1px solid hsl(214.3 31.8% 91.4%);">
             <div class="app-header-top flex justify-between items-center">
               <div class="app-brand min-w-0">
-                <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400">Bug report VR</h1>
-                <p class="text-purple-300/70 text-xs tracking-widest uppercase mt-1">Gestionnaire de Sessions & Suivi des bugs</p>
+                <h1 class="text-3xl font-black text-slate-900">Bug report VR</h1>
+                <p class="text-slate-500 text-xs tracking-widest uppercase mt-1">Gestionnaire de Sessions & Suivi des bugs</p>
               </div>
               <div class="app-header-tools flex gap-6 items-center">
                 <div class="app-stats grid grid-cols-5 gap-4">
                   <div class="text-center cursor-pointer hover:opacity-80 transition" data-filter="all">
-                    <div class="text-2xl font-black text-cyan-400">${stats.totalSessions}</div>
-                    <div class="text-xs text-slate-400 uppercase tracking-wider">Sessions</div>
+                    <div class="text-2xl font-black" style="color: hsl(221.2 83.2% 53.3%);">${stats.totalSessions}</div>
+                    <div class="text-xs text-slate-600 uppercase tracking-wider">Sessions</div>
                   </div>
                   <div class="text-center cursor-pointer hover:opacity-80 transition" data-filter="all">
-                    <div class="text-2xl font-black text-purple-400">${stats.totalItems}</div>
-                    <div class="text-xs text-slate-400 uppercase tracking-wider">Entrées</div>
+                    <div class="text-2xl font-black text-slate-900">${stats.totalItems}</div>
+                    <div class="text-xs text-slate-600 uppercase tracking-wider">Entrées</div>
                   </div>
                   <div class="text-center cursor-pointer hover:opacity-80 transition" data-filter="critical">
-                    <div class="text-2xl font-black text-red-400">${stats.criticalBugs}</div>
-                    <div class="text-xs text-slate-400 uppercase tracking-wider">Critiques</div>
+                    <div class="text-2xl font-black text-red-600">${stats.criticalBugs}</div>
+                    <div class="text-xs text-slate-600 uppercase tracking-wider">Critiques</div>
                   </div>
                   <div class="text-center cursor-pointer hover:opacity-80 transition" data-filter="high">
-                    <div class="text-2xl font-black text-orange-400">${stats.highBugs}</div>
-                    <div class="text-xs text-slate-400 uppercase tracking-wider">Élevés</div>
+                    <div class="text-2xl font-black text-orange-600">${stats.highBugs}</div>
+                    <div class="text-xs text-slate-600 uppercase tracking-wider">Élevés</div>
                   </div>
                   <div class="text-center cursor-pointer hover:opacity-80 transition" data-filter="low">
-                    <div class="text-2xl font-black text-blue-400">${stats.lowBugs}</div>
-                    <div class="text-xs text-slate-400 uppercase tracking-wider">Faibles</div>
+                    <div class="text-2xl font-black text-blue-600">${stats.lowBugs}</div>
+                    <div class="text-xs text-slate-600 uppercase tracking-wider">Faibles</div>
                   </div>
                 </div>
-                <button id="btn-settings" class="bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 px-5 py-2.5 rounded-lg text-white text-sm font-bold transition shadow-lg shadow-purple-500/20 flex items-center gap-2">
+                <button id="btn-settings" class="px-5 py-2.5 rounded-lg text-white text-sm font-bold transition shadow-sm flex items-center gap-2" style="background: hsl(221.2 83.2% 53.3%);">
                   <i data-lucide="settings" style="width: 18px; height: 18px;"></i>
                   Paramètres
                 </button>
@@ -1605,26 +1605,26 @@
         const selectedSessionId = this.selectedSessionId || activeSession?.id || (sessions.length > 0 ? sessions[0].id : null);
         
         return `
-          <aside class="app-sidebar w-72 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-r border-purple-900/30 overflow-y-auto">
+          <aside class="app-sidebar w-72 bg-white overflow-y-auto" style="border-right: 1px solid hsl(214.3 31.8% 91.4%);">
             <div class="p-6">
-              <button id="btn-new-session" class="w-full bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 px-4 py-3 rounded-lg text-white font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20">
+              <button id="btn-new-session" class="w-full px-4 py-3 rounded-lg text-white font-bold transition flex items-center justify-center gap-2 shadow-sm" style="background: hsl(221.2 83.2% 53.3%);">
                 <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
                 Nouvelle Session
               </button>
             </div>
             <div class="app-sessions-wrap px-4 pb-6">
-              <h3 class="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-4 uppercase tracking-widest">Sessions</h3>
+              <h3 class="text-xs font-black mb-4 uppercase tracking-widest" style="color: hsl(221.2 83.2% 53.3%);">Sessions</h3>
               <div class="app-sessions space-y-3">
                 ${sessions.length === 0 ? '<p class="text-xs text-slate-500 italic">Aucune session</p>' : ''}
                 ${[...sessions].reverse().map((s, index) => {
                   const isSelected = s.id === selectedSessionId;
                   return `
-                    <div class="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border ${isSelected ? 'border-purple-500 shadow-lg shadow-purple-500/20' : 'border-purple-800/30 hover:border-purple-700/50'} rounded-lg p-4 cursor-pointer transition-all hover:shadow-lg hover:shadow-purple-500/10 session-item" data-session-id="${s.id}">
+                    <div class="bg-white rounded-lg p-4 cursor-pointer transition-all session-item" data-session-id="${s.id}" style="border: 1px solid ${isSelected ? 'hsl(221.2 83.2% 53.3%)' : 'hsl(214.3 31.8% 91.4%)'}; ${isSelected ? 'box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);' : ''} ${!isSelected ? 'border-color: hsl(214.3 31.8% 91.4%);' : ''} ">
                       <div class="flex items-start justify-between gap-2">
                         <div class="flex-1">
-                          <div class="text-sm font-bold text-cyan-300">Session ${s.number}</div>
-                          <div class="text-xs text-purple-300 font-semibold mt-1">${s.game_name || 'N/A'}</div>
-                          <div class="text-xs text-slate-500 mt-2">${this.formatSessionDate(s.date) || 'N/A'}</div>
+                          <div class="text-sm font-bold text-slate-900">Session ${s.number}</div>
+                          <div class="text-xs font-semibold mt-1" style="color: hsl(221.2 83.2% 53.3%);">${s.game_name || 'N/A'}</div>
+                          <div class="text-xs text-slate-600 mt-2">${this.formatSessionDate(s.date) || 'N/A'}</div>
                           <div class="text-xs text-slate-600 mt-2 flex gap-2">
                             <span>${s.panel_size || 0} joueurs</span>
                           </div>
@@ -1654,15 +1654,15 @@
         
         if (sessions.length === 0) {
           return `
-            <main class="app-main flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8">
+            <main class="app-main flex-1 flex flex-col items-center justify-center p-8" style="background: hsl(210 40% 96.1%);">
               <div class="text-center flex-1 flex items-center justify-center">
                 <div>
-                  <i data-lucide="sparkles" style="width: 64px; height: 64px; margin: 0 auto 16px; color: #06b6d4;"></i>
-                  <p class="text-slate-300 text-lg font-semibold">Aucune session</p>
-                  <p class="text-slate-500 text-sm mt-2">Cliquez sur "Commencer Session" pour démarrer</p>
+                  <i data-lucide="sparkles" style="width: 64px; height: 64px; margin: 0 auto 16px; color: hsl(221.2 83.2% 53.3%);"></i>
+                  <p class="text-slate-900 text-lg font-semibold">Aucune session</p>
+                  <p class="text-slate-600 text-sm mt-2">Cliquez sur "Commencer Session" pour démarrer</p>
                 </div>
               </div>
-              <div class="text-center text-xs text-slate-500 mt-4 pt-4 border-t border-slate-700/30">
+              <div class="text-center text-xs text-slate-500 mt-4 pt-4" style="border-top: 1px solid hsl(214.3 31.8% 91.4%);">
                 <p>VRC Session Manager • Version ${VERSION}</p>
               </div>
             </main>
@@ -1701,28 +1701,28 @@
         };
         
         return `
-          <main class="app-main flex-1 overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8 flex flex-col min-w-0">
+          <main class="app-main flex-1 overflow-y-auto p-8 flex flex-col min-w-0" style="background: hsl(210 40% 96.1%);">
             <div class="flex-1 w-full min-w-0">
               <div class="session-heading-row flex justify-between items-start mb-8">
                 <div class="flex-1 min-w-0">
-                  <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-3 break-words">Session ${selectedSession.number || 1} - ${selectedSession.game_name || 'N/A'}</h2>
-                  <div class="text-slate-400 space-y-1.5 text-sm">
-                    <p>Début: <span class="text-cyan-300">${formatDate(selectedSession.date)}</span></p>
-                    ${selectedSession.start_time ? `<p>Heure: <span class="text-cyan-300">${formatTime(selectedSession.start_time)}</span></p>` : ''}
-                    <p>Panel: <span class="text-purple-300">${selectedSession.panel_size || 0} joueurs</span></p>
-                    <p>Preneur de notes - GM: <span class="text-cyan-300">${selectedSession.note_taker || 'N/A'}</span></p>
-                    ${selectedSession.remarks ? `<p>Remarques: <span class="text-purple-300">${selectedSession.remarks}</span></p>` : ''}
+                  <h2 class="text-4xl font-black mb-3 break-words" style="color: hsl(221.2 83.2% 53.3%);">Session ${selectedSession.number || 1} - ${selectedSession.game_name || 'N/A'}</h2>
+                  <div class="text-slate-600 space-y-1.5 text-sm">
+                    <p>Début: <span class="text-slate-900 font-medium">${formatDate(selectedSession.date)}</span></p>
+                    ${selectedSession.start_time ? `<p>Heure: <span class="text-slate-900 font-medium">${formatTime(selectedSession.start_time)}</span></p>` : ''}
+                    <p>Panel: <span class="text-slate-900 font-medium">${selectedSession.panel_size || 0} joueurs</span></p>
+                    <p>Preneur de notes - GM: <span class="text-slate-900 font-medium">${selectedSession.note_taker || 'N/A'}</span></p>
+                    ${selectedSession.remarks ? `<p>Remarques: <span class="text-slate-900 font-medium">${selectedSession.remarks}</span></p>` : ''}
                   </div>
                 </div>
                 <div class="flex flex-col gap-3">
-                  <button id="btn-delete-session" class="bg-red-900/20 hover:bg-red-900/40 border border-red-700/30 hover:border-red-600/50 px-4 py-2 rounded-lg text-red-300 text-sm font-semibold transition">
+                  <button id="btn-delete-session" class="bg-red-50 hover:bg-red-100 px-4 py-2 rounded-lg text-red-700 text-sm font-semibold transition shadow-sm" style="border: 1px solid hsl(0 84% 90%);">
                     <i data-lucide="trash-2" style="width: 18px; height: 18px; display: inline; margin-right: 6px;"></i> Supprimer
                   </button>
                 </div>
               </div>
 
               <div class="flex gap-3 mb-8">
-                <button id="btn-add-item-after" class="flex-1 bg-gradient-to-r from-cyan-900/40 to-cyan-800/40 border border-cyan-700/30 hover:border-cyan-600/50 hover:from-cyan-900/60 hover:to-cyan-800/60 px-4 py-3 rounded-lg text-cyan-300 text-sm font-bold transition">
+                <button id="btn-add-item-after" class="flex-1 px-4 py-3 rounded-lg text-white text-sm font-bold transition shadow-sm" style="background: hsl(221.2 83.2% 53.3%);">
                   <i data-lucide="plus" style="width: 16px; height: 16px; display: inline; margin-right: 6px;"></i> Ajouter une entrée
                 </button>
               </div>
@@ -1741,22 +1741,22 @@
 
                 return `
                   <div class="mb-8">
-                    <h3 class="text-lg font-bold text-white mb-4 uppercase tracking-wider">${typeLabel}</h3>
+                    <h3 class="text-lg font-bold text-slate-900 mb-4 uppercase tracking-wider">${typeLabel}</h3>
                     <div class="space-y-3">
                       ${typeItems.map(item => `
-                        <div style="border-left: 4px solid ${this.getSeverityHexColor(item.severity)};" class="item-card bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-5 hover:shadow-lg transition ${item.severity === 'archived' ? 'opacity-60' : ''}">
+                        <div style="border-left: 4px solid ${this.getSeverityHexColor(item.severity)}; border: 1px solid hsl(214.3 31.8% 91.4%); border-left-width: 4px;" class="item-card bg-white rounded-lg p-5 hover:shadow-sm transition ${item.severity === 'archived' ? 'opacity-60' : ''}">
                           <div class="item-card-row flex justify-between items-start gap-4">
                             <div class="flex-1 min-w-0">
-                              <p class="text-white font-semibold text-base">${item.content || 'N/A'}</p>
-                              <div class="text-xs text-slate-400 mt-3 flex gap-3">
-                                ${item.severity === 'archived' ? `<span class="text-orange-300 italic">Archivée</span>` : ''}
+                              <p class="text-slate-900 font-semibold text-base">${item.content || 'N/A'}</p>
+                              <div class="text-xs text-slate-600 mt-3 flex gap-3">
+                                ${item.severity === 'archived' ? `<span class="text-orange-600 italic">Archivée</span>` : ''}
                               </div>
                             </div>
                             <div class="item-actions flex gap-2">
-                              <button class="edit-item-btn bg-purple-900/20 hover:bg-purple-900/40 border border-purple-700/30 hover:border-purple-600/50 text-purple-300 px-3 py-1.5 rounded text-xs font-semibold transition" data-item-id="${item.id}">
+                              <button class="edit-item-btn bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded text-xs font-semibold transition shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);" data-item-id="${item.id}">
                                 <i data-lucide="edit-2" style="width: 14px; height: 14px; display: inline; margin-right: 4px;"></i> Modifier
                               </button>
-                              <button class="delete-item-btn bg-red-900/20 hover:bg-red-900/40 border border-red-700/30 hover:border-red-600/50 text-red-300 p-1.5 rounded transition" data-item-id="${item.id}">
+                              <button class="delete-item-btn bg-red-50 hover:bg-red-100 text-red-700 p-1.5 rounded transition" style="border: 1px solid hsl(0 84% 90%);" data-item-id="${item.id}">
                                 <i data-lucide="x" style="width: 16px; height: 16px;"></i>
                               </button>
                             </div>
@@ -1769,27 +1769,27 @@
               }).join('')}
             </div>
             <div class="journal-panel w-full -mx-8 px-8 mt-12">
-              <div class="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-6">
+              <div class="bg-white rounded-lg p-6 shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
                 <div class="journal-toolbar flex justify-between items-center mb-4">
-                  <h3 class="text-lg font-bold text-white uppercase tracking-wider">Résumé de la Session - Journal</h3>
+                  <h3 class="text-lg font-bold text-slate-900 uppercase tracking-wider">Résumé de la Session - Journal</h3>
                   <div class="flex gap-2">
-                    <button id="btn-toggle-sort-journal" class="bg-gradient-to-r from-green-900/40 to-green-800/40 border border-green-700/30 hover:border-green-600/50 hover:from-green-900/60 hover:to-green-800/60 px-4 py-2 rounded-lg text-green-300 text-sm font-bold transition shadow-lg shadow-green-500/10 flex items-center gap-2">
+                    <button id="btn-toggle-sort-journal" class="bg-green-50 hover:bg-green-100 px-4 py-2 rounded-lg text-green-700 text-sm font-bold transition shadow-sm flex items-center gap-2" style="border: 1px solid hsl(142 76% 90%);">
                       <i data-lucide="sort-asc" style="width: 16px; height: 16px;"></i>
                       <span id="sort-journal-label">${this.sortJournalBySeverity ? 'Trier par chronologie' : 'Trier par critique'}</span>
                     </button>
-                    <button id="btn-download-journal" class="bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 px-4 py-2 rounded-lg text-white text-sm font-bold transition shadow-lg shadow-purple-500/20 flex items-center gap-2">
+                    <button id="btn-download-journal" class="px-4 py-2 rounded-lg text-white text-sm font-bold transition shadow-sm flex items-center gap-2" style="background: hsl(221.2 83.2% 53.3%);">
                       <i data-lucide="download" style="width: 16px; height: 16px;"></i>
                       Télécharger
                     </button>
                   </div>
                 </div>
-                <div class="space-y-2 text-sm text-slate-300">
+                <div class="space-y-2 text-sm text-slate-700">
                   ${this.generateSessionSummary(selectedSession.id) || '<div class="text-center text-slate-500 italic">Aucune entrée enregistrée</div>'}
                 </div>
               </div>
             </div>
 
-            <div class="text-center text-xs text-slate-500 mt-12 pt-4 border-t border-slate-700/30">
+            <div class="text-center text-xs text-slate-500 mt-12 pt-4" style="border-top: 1px solid hsl(214.3 31.8% 91.4%);">
               <p>VRC Session Manager • Version ${VERSION} • © Julien</p>
             </div>
           </main>
@@ -1827,21 +1827,21 @@
         }[this.currentFilter] || '#64748b';
 
         return `
-          <main class="app-main flex-1 overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8 flex flex-col min-w-0">
+          <main class="app-main flex-1 overflow-y-auto p-8 flex flex-col min-w-0" style="background: hsl(210 40% 96.1%);">
             <div class="max-w-5xl mx-auto flex-1 w-full min-w-0">
               <div class="filter-heading-row flex justify-between items-center mb-8">
                 <div>
-                  <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">Entrées ${filterLabel}</h2>
-                  ${this.currentGameFilter ? `<p class="text-slate-400 mt-2 text-lg">${this.currentGameFilter}</p>` : ''}
+                  <h2 class="text-4xl font-black" style="color: hsl(221.2 83.2% 53.3%);">Entrées ${filterLabel}</h2>
+                  ${this.currentGameFilter ? `<p class="text-slate-600 mt-2 text-lg">${this.currentGameFilter}</p>` : ''}
                 </div>
-                <button id="btn-close-filter" class="bg-slate-700/50 hover:bg-slate-700 border border-slate-600/50 px-4 py-2 rounded-lg text-slate-300 text-sm font-semibold transition">
+                <button id="btn-close-filter" class="bg-white hover:bg-slate-50 px-4 py-2 rounded-lg text-slate-700 text-sm font-semibold transition shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
                   <i data-lucide="x" style="width: 18px; height: 18px; display: inline; margin-right: 6px;"></i> Fermer
                 </button>
               </div>
 
               ${filteredItems.length === 0 ? `
                 <div class="text-center py-12">
-                  <p class="text-slate-400 text-lg">Aucune entrée ${filterLabel.toLowerCase()}</p>
+                  <p class="text-slate-600 text-lg">Aucune entrée ${filterLabel.toLowerCase()}</p>
                 </div>
               ` : `
                 ${Object.entries(itemsBySession).map(([sessionId, items]) => {
@@ -1850,23 +1850,23 @@
                   
                   return `
                     <div class="mb-12">
-                      <h3 class="text-2xl font-bold text-cyan-400 mb-6 pb-3 border-b border-purple-800/50">Session ${session.number} - ${session.game_name}</h3>
+                      <h3 class="text-2xl font-bold mb-6 pb-3" style="color: hsl(221.2 83.2% 53.3%); border-bottom: 1px solid hsl(214.3 31.8% 91.4%);">Session ${session.number} - ${session.game_name}</h3>
                       <div class="space-y-3">
                         ${items.map(item => `
-                          <div style="border-left: 4px solid ${severityColor};" class="item-card bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-5 hover:shadow-lg transition">
+                          <div style="border-left: 4px solid ${severityColor}; border: 1px solid hsl(214.3 31.8% 91.4%); border-left-width: 4px;" class="item-card bg-white rounded-lg p-5 hover:shadow-sm transition">
                             <div class="item-card-row flex justify-between items-start gap-4">
                               <div class="flex-1 min-w-0">
-                                <p class="text-white font-semibold text-base">${item.content}</p>
-                                <div class="text-xs text-slate-400 mt-3 flex flex-wrap gap-4">
-                                  <span>Type: <span class="text-purple-300 font-semibold">${({bug: 'Bug', feedback: 'Retour', suggestion: 'Suggestion', task: 'Tâche', debrief: 'Débrief'}[item.type] || item.type)}</span></span>
-                                  <span>Sévérité: <span class="text-purple-300 font-semibold">${({critical: 'Critique', high: 'Élevé', medium: 'Moyen', low: 'Faible', info: 'Info'}[item.severity] || item.severity)}</span></span>
+                                <p class="text-slate-900 font-semibold text-base">${item.content}</p>
+                                <div class="text-xs text-slate-600 mt-3 flex flex-wrap gap-4">
+                                  <span>Type: <span class="text-slate-900 font-semibold">${({bug: 'Bug', feedback: 'Retour', suggestion: 'Suggestion', task: 'Tâche', debrief: 'Débrief'}[item.type] || item.type)}</span></span>
+                                  <span>Sévérité: <span class="text-slate-900 font-semibold">${({critical: 'Critique', high: 'Élevé', medium: 'Moyen', low: 'Faible', info: 'Info'}[item.severity] || item.severity)}</span></span>
                                 </div>
                               </div>
                               <div class="item-actions flex gap-2">
-                                <button class="edit-item-btn bg-purple-900/20 hover:bg-purple-900/40 border border-purple-700/30 hover:border-purple-600/50 text-purple-300 px-3 py-1.5 rounded text-xs font-semibold transition" data-item-id="${item.id}">
+                                <button class="edit-item-btn bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded text-xs font-semibold transition shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);" data-item-id="${item.id}">
                                   <i data-lucide="edit-2" style="width: 14px; height: 14px; display: inline; margin-right: 4px;"></i> Modifier
                                 </button>
-                                <button class="delete-item-btn bg-red-900/20 hover:bg-red-900/40 border border-red-700/30 hover:border-red-600/50 text-red-300 p-1.5 rounded transition" data-item-id="${item.id}">
+                                <button class="delete-item-btn bg-red-50 hover:bg-red-100 text-red-700 p-1.5 rounded transition" style="border: 1px solid hsl(0 84% 90%);" data-item-id="${item.id}">
                                   <i data-lucide="x" style="width: 16px; height: 16px;"></i>
                                 </button>
                               </div>
@@ -1880,7 +1880,7 @@
               `}
             </div>
 
-            <div class="text-center text-xs text-slate-500 mt-12 pt-4 border-t border-slate-700/30">
+            <div class="text-center text-xs text-slate-500 mt-12 pt-4" style="border-top: 1px solid hsl(214.3 31.8% 91.4%);">
               <p>VRC Session Manager • Version ${VERSION}</p>
             </div>
           </main>
@@ -1909,39 +1909,39 @@
         });
 
         return `
-          <main class="app-main flex-1 overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8 flex flex-col min-w-0">
+          <main class="app-main flex-1 overflow-y-auto p-8 flex flex-col min-w-0" style="background: hsl(210 40% 96.1%);">
             <div class="max-w-5xl mx-auto flex-1 w-full min-w-0">
               <div class="filter-heading-row flex justify-between items-center mb-8">
-                <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">${this.currentGameFilter}</h2>
-                <button id="btn-close-game-filter" class="bg-slate-700/50 hover:bg-slate-700 border border-slate-600/50 px-4 py-2 rounded-lg text-slate-300 text-sm font-semibold transition">
+                <h2 class="text-4xl font-black" style="color: hsl(221.2 83.2% 53.3%);">${this.currentGameFilter}</h2>
+                <button id="btn-close-game-filter" class="bg-white hover:bg-slate-50 px-4 py-2 rounded-lg text-slate-700 text-sm font-semibold transition shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
                   <i data-lucide="x" style="width: 18px; height: 18px; display: inline; margin-right: 6px;"></i> Fermer
                 </button>
               </div>
 
               ${allGameItems.length === 0 ? `
                 <div class="text-center py-12">
-                  <p class="text-slate-400 text-lg">Aucune entrée pour ce jeu</p>
+                  <p class="text-slate-600 text-lg">Aucune entrée pour ce jeu</p>
                 </div>
               ` : `
                 <div class="space-y-3">
                   ${allGameItems.map(item => `
-                    <div style="border-left: 4px solid ${this.getSeverityHexColor(item.severity)};" class="item-card bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 rounded-lg p-5 hover:shadow-lg transition">
+                    <div style="border-left: 4px solid ${this.getSeverityHexColor(item.severity)}; border: 1px solid hsl(214.3 31.8% 91.4%); border-left-width: 4px;" class="item-card bg-white rounded-lg p-5 hover:shadow-sm transition">
                       <div class="item-card-row flex justify-between items-start gap-4">
                         <div class="flex-1 min-w-0">
                           <div class="flex items-start gap-3">
-                            <p class="text-white font-semibold text-base flex-1">${item.content}</p>
-                            <span class="text-xs text-slate-500 bg-slate-700/50 px-2 py-1 rounded whitespace-nowrap">S${item.sessionNumber}</span>
+                            <p class="text-slate-900 font-semibold text-base flex-1">${item.content}</p>
+                            <span class="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded whitespace-nowrap">S${item.sessionNumber}</span>
                           </div>
-                          <div class="text-xs text-slate-400 mt-3 flex flex-wrap gap-4">
-                            <span>Type: <span class="text-purple-300 font-semibold">${({bug: 'Bug', feedback: 'Retour', suggestion: 'Suggestion', task: 'Tâche', debrief: 'Débrief'}[item.type] || item.type)}</span></span>
-                            <span>Sévérité: <span class="text-purple-300 font-semibold">${({critical: 'Critique', high: 'Élevé', medium: 'Moyen', low: 'Faible', info: 'Info'}[item.severity] || item.severity)}</span></span>
+                          <div class="text-xs text-slate-600 mt-3 flex flex-wrap gap-4">
+                            <span>Type: <span class="text-slate-900 font-semibold">${({bug: 'Bug', feedback: 'Retour', suggestion: 'Suggestion', task: 'Tâche', debrief: 'Débrief'}[item.type] || item.type)}</span></span>
+                            <span>Sévérité: <span class="text-slate-900 font-semibold">${({critical: 'Critique', high: 'Élevé', medium: 'Moyen', low: 'Faible', info: 'Info'}[item.severity] || item.severity)}</span></span>
                           </div>
                         </div>
                         <div class="item-actions flex gap-2">
-                          <button class="edit-item-btn bg-purple-900/20 hover:bg-purple-900/40 border border-purple-700/30 hover:border-purple-600/50 text-purple-300 px-3 py-1.5 rounded text-xs font-semibold transition" data-item-id="${item.id}">
+                          <button class="edit-item-btn bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded text-xs font-semibold transition shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);" data-item-id="${item.id}">
                             <i data-lucide="edit-2" style="width: 14px; height: 14px; display: inline; margin-right: 4px;"></i> Modifier
                           </button>
-                          <button class="delete-item-btn bg-red-900/20 hover:bg-red-900/40 border border-red-700/30 hover:border-red-600/50 text-red-300 p-1.5 rounded transition" data-item-id="${item.id}">
+                          <button class="delete-item-btn bg-red-50 hover:bg-red-100 text-red-700 p-1.5 rounded transition" style="border: 1px solid hsl(0 84% 90%);" data-item-id="${item.id}">
                             <i data-lucide="x" style="width: 16px; height: 16px;"></i>
                           </button>
                         </div>
@@ -1952,7 +1952,7 @@
               `}
             </div>
 
-            <div class="text-center text-xs text-slate-500 mt-12 pt-4 border-t border-slate-700/30">
+            <div class="text-center text-xs text-slate-500 mt-12 pt-4" style="border-top: 1px solid hsl(214.3 31.8% 91.4%);">
               <p>VRC Session Manager • Version ${VERSION}</p>
             </div>
           </main>
@@ -2013,57 +2013,58 @@
 
       renderModals() {
         return `
-          <div id="modal-overlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"></div>
+          <div id="modal-overlay" class="hidden fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50"></div>
           <div id="modal-new-session" class="hidden fixed inset-0 flex items-center justify-center z-50">
-            <div class="modal-box bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
-              <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-6">Nouvelle Session de jeu</h3>
+            <div class="modal-box bg-white rounded-lg shadow-lg p-8 w-96" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
+              <h3 class="text-2xl font-black mb-6" style="color: hsl(221.2 83.2% 53.3%);">Nouvelle Session de jeu</h3>
               <div class="space-y-4">
                 <div>
-                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Nom du jeu</label>
-                  <select id="input-session-game-name" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition">
+                  <label class="text-xs font-bold text-slate-700 uppercase tracking-widest block mb-2">Nom du jeu</label>
+                  <select id="input-session-game-name" class="w-full bg-white rounded-lg px-4 py-3 text-slate-900 focus:outline-none transition" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
+
                     <option value="">-- Sélectionner un jeu --</option>
                     <option value="Bataille de la Planta">Bataille de la Planta</option>
                     <option value="Le Serviteur">Le Serviteur</option>
                     <option value="SchoolCrafter - HEP">SchoolCrafter - HEP</option>
                     <option value="custom">Autre (personnalisé)</option>
                   </select>
-                  <input type="text" id="input-session-game-name-custom" placeholder="Entrez le nom personnalisé du jeu" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition mt-2 hidden">
+                  <input type="text" id="input-session-game-name-custom" placeholder="Entrez le nom personnalisé du jeu" class="w-full bg-white rounded-lg px-4 py-3 text-slate-900 focus:outline-none transition mt-2 hidden" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
                 </div>
                 <div>
-                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Date de la session</label>
-                  <input type="date" id="input-session-date" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition">
+                  <label class="text-xs font-bold text-slate-700 uppercase tracking-widest block mb-2">Date de la session</label>
+                  <input type="date" id="input-session-date" class="w-full bg-white rounded-lg px-4 py-3 text-slate-900 focus:outline-none transition" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
                 </div>
                 <div>
-                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Nombre de joueurs</label>
-                  <input type="number" id="input-session-panel" placeholder="Nombre de joueurs" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition">
+                  <label class="text-xs font-bold text-slate-700 uppercase tracking-widest block mb-2">Nombre de joueurs</label>
+                  <input type="number" id="input-session-panel" placeholder="Nombre de joueurs" class="w-full bg-white rounded-lg px-4 py-3 text-slate-900 focus:outline-none transition" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
                 </div>
                 <div>
-                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Preneur de notes - GM</label>
-                  <input type="text" id="input-session-note-taker" placeholder="Votre nom" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition">
+                  <label class="text-xs font-bold text-slate-700 uppercase tracking-widest block mb-2">Preneur de notes - GM</label>
+                  <input type="text" id="input-session-note-taker" placeholder="Votre nom" class="w-full bg-white rounded-lg px-4 py-3 text-slate-900 focus:outline-none transition" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
                 </div>
                 <div>
-                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Remarques</label>
-                  <textarea id="input-session-remarks" placeholder="Notes générales sur la session..." class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition h-20"></textarea>
+                  <label class="text-xs font-bold text-slate-700 uppercase tracking-widest block mb-2">Remarques</label>
+                  <textarea id="input-session-remarks" placeholder="Notes générales sur la session..." class="w-full bg-white rounded-lg px-4 py-3 text-slate-900 focus:outline-none transition h-20" style="border: 1px solid hsl(214.3 31.8% 91.4%);"></textarea>
                 </div>
               </div>
               <div class="flex gap-3 mt-8">
-                <button id="btn-cancel-session" class="flex-1 bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/50 text-slate-300 px-4 py-3 rounded-lg font-semibold transition">Annuler</button>
-                <button id="btn-save-session" class="flex-1 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white px-4 py-3 rounded-lg font-bold transition shadow-lg shadow-purple-500/20">Démarrer</button>
+                <button id="btn-cancel-session" class="flex-1 bg-white hover:bg-slate-50 text-slate-700 px-4 py-3 rounded-lg font-semibold transition shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);">Annuler</button>
+                <button id="btn-save-session" class="flex-1 text-white px-4 py-3 rounded-lg font-bold transition shadow-sm" style="background: hsl(221.2 83.2% 53.3%);">Démarrer</button>
               </div>
             </div>
           </div>
           <div id="modal-add-item" class="hidden fixed inset-0 flex items-center justify-center z-50">
-            <div class="modal-box bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
-              <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-6" id="modal-item-title">Ajouter une entrée</h3>
+            <div class="modal-box bg-white rounded-lg shadow-lg p-8 w-96" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
+              <h3 class="text-2xl font-black mb-6" style="color: hsl(221.2 83.2% 53.3%);" id="modal-item-title">Ajouter une entrée</h3>
               <div class="space-y-4">
                 <div>
-                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Description</label>
-                  <textarea id="input-item-content" placeholder="Décrivez le problème, le retour ou la tâche..." class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition h-24"></textarea>
+                  <label class="text-xs font-bold text-slate-700 uppercase tracking-widest block mb-2">Description</label>
+                  <textarea id="input-item-content" placeholder="Décrivez le problème, le retour ou la tâche..." class="w-full bg-white rounded-lg px-4 py-3 text-slate-900 focus:outline-none transition h-24" style="border: 1px solid hsl(214.3 31.8% 91.4%);"></textarea>
                 </div>
 
                 <div>
-                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Sévérité</label>
-                  <select id="input-item-severity" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition font-semibold">
+                  <label class="text-xs font-bold text-slate-700 uppercase tracking-widest block mb-2">Sévérité</label>
+                  <select id="input-item-severity" class="w-full bg-white rounded-lg px-4 py-3 text-slate-900 focus:outline-none transition font-semibold" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
                     <option value="info">Info</option>
                     <option value="low">Faible</option>
                     <option value="high">Élevé</option>
@@ -2072,23 +2073,23 @@
                 </div>
               </div>
               <div class="flex gap-3 mt-8">
-                <button id="btn-cancel-item" class="flex-1 bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/50 text-slate-300 px-4 py-3 rounded-lg font-semibold transition">Annuler</button>
-                <button id="btn-save-item" class="flex-1 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white px-4 py-3 rounded-lg font-bold transition shadow-lg shadow-purple-500/20">Ajouter</button>
+                <button id="btn-cancel-item" class="flex-1 bg-white hover:bg-slate-50 text-slate-700 px-4 py-3 rounded-lg font-semibold transition shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);">Annuler</button>
+                <button id="btn-save-item" class="flex-1 text-white px-4 py-3 rounded-lg font-bold transition shadow-sm" style="background: hsl(221.2 83.2% 53.3%);">Ajouter</button>
               </div>
             </div>
           </div>
           <div id="modal-edit-item" class="hidden fixed inset-0 flex items-center justify-center z-50">
-            <div class="modal-box bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
-              <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-6">Modifier l'entrée</h3>
+            <div class="modal-box bg-white rounded-lg shadow-lg p-8 w-96" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
+              <h3 class="text-2xl font-black mb-6" style="color: hsl(221.2 83.2% 53.3%);">Modifier l'entrée</h3>
               <div class="space-y-4">
                 <div>
-                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Description</label>
-                  <textarea id="edit-item-content" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition h-24"></textarea>
+                  <label class="text-xs font-bold text-slate-700 uppercase tracking-widest block mb-2">Description</label>
+                  <textarea id="edit-item-content" class="w-full bg-white rounded-lg px-4 py-3 text-slate-900 focus:outline-none transition h-24" style="border: 1px solid hsl(214.3 31.8% 91.4%);"></textarea>
                 </div>
 
                 <div>
-                  <label class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Sévérité</label>
-                  <select id="edit-item-severity" class="w-full bg-slate-700/50 border border-slate-600/50 focus:border-purple-500/50 rounded-lg px-4 py-3 text-white focus:outline-none transition font-semibold">
+                  <label class="text-xs font-bold text-slate-700 uppercase tracking-widest block mb-2">Sévérité</label>
+                  <select id="edit-item-severity" class="w-full bg-white rounded-lg px-4 py-3 text-slate-900 focus:outline-none transition font-semibold" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
                     <option value="info">Info</option>
                     <option value="low">Faible</option>
                     <option value="high">Élevé</option>
@@ -2098,34 +2099,34 @@
                 </div>
               </div>
               <div class="flex gap-3 mt-8">
-                <button id="btn-cancel-edit-item" class="flex-1 bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/50 text-slate-300 px-4 py-3 rounded-lg font-semibold transition">Annuler</button>
-                <button id="btn-save-edit-item" class="flex-1 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white px-4 py-3 rounded-lg font-bold transition shadow-lg shadow-purple-500/20">Sauvegarder</button>
+                <button id="btn-cancel-edit-item" class="flex-1 bg-white hover:bg-slate-50 text-slate-700 px-4 py-3 rounded-lg font-semibold transition shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);">Annuler</button>
+                <button id="btn-save-edit-item" class="flex-1 text-white px-4 py-3 rounded-lg font-bold transition shadow-sm" style="background: hsl(221.2 83.2% 53.3%);">Sauvegarder</button>
               </div>
             </div>
           </div>
           <div id="modal-delete-confirmation" class="hidden fixed inset-0 flex items-center justify-center z-50">
-            <div class="modal-box bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-red-800/50 shadow-red-500/20">
-              <h3 class="text-2xl font-black text-red-400 mb-4">Supprimer la session ?</h3>
-              <p class="text-slate-300 mb-6">Êtes-vous sûr de vouloir supprimer cette session ? Cette action est irréversible et supprimera toutes les entrées associées.</p>
+            <div class="modal-box bg-white rounded-lg shadow-lg p-8 w-96" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
+              <h3 class="text-2xl font-black text-red-700 mb-4">Supprimer la session ?</h3>
+              <p class="text-slate-700 mb-6">Êtes-vous sûr de vouloir supprimer cette session ? Cette action est irréversible et supprimera toutes les entrées associées.</p>
               <div class="flex gap-3 mt-8">
-                <button id="btn-cancel-delete" class="flex-1 bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/50 text-slate-300 px-4 py-3 rounded-lg font-semibold transition">Annuler</button>
-                <button id="btn-confirm-delete" class="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white px-4 py-3 rounded-lg font-bold transition shadow-lg shadow-red-500/20">Supprimer</button>
+                <button id="btn-cancel-delete" class="flex-1 bg-white hover:bg-slate-50 text-slate-700 px-4 py-3 rounded-lg font-semibold transition shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);">Annuler</button>
+                <button id="btn-confirm-delete" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-bold transition shadow-sm">Supprimer</button>
               </div>
             </div>
           </div>
           <div id="modal-settings" class="hidden fixed inset-0 flex items-center justify-center z-50">
-            <div class="modal-box bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-full max-w-2xl border border-purple-800/50 shadow-purple-500/20 max-h-[90vh] overflow-y-auto">
-              <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-8">Paramètres</h3>
+            <div class="modal-box bg-white rounded-lg shadow-lg p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
+              <h3 class="text-2xl font-black mb-8" style="color: hsl(221.2 83.2% 53.3%);">Paramètres</h3>
               <div class="space-y-4">
                 <div>
-                  <h4 class="text-lg font-bold text-green-400 mb-3">Filtrer par Jeu</h4>
+                  <h4 class="text-lg font-bold text-slate-900 mb-3">Filtrer par Jeu</h4>
                   <div class="space-y-2">
-                    <button id="btn-filter-all-games" class="w-full bg-gradient-to-r from-green-900/50 to-green-800/50 border border-green-700/50 hover:border-green-600/50 hover:from-green-900/70 hover:to-green-800/70 text-green-300 px-4 py-3 rounded-lg transition text-left font-semibold text-sm">
-                      <span class="text-white">Tous les jeux</span>
+                    <button id="btn-filter-all-games" class="w-full bg-white hover:bg-slate-50 text-slate-700 px-4 py-3 rounded-lg transition text-left font-semibold text-sm shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
+                      <span class="text-slate-900">Tous les jeux</span>
                     </button>
                     <div id="settings-games-list" class="space-y-2">
                       ${this.getAvailableGames().map(game => `
-                        <button class="settings-game-filter-btn w-full text-left bg-gradient-to-r from-green-900/30 to-green-800/30 border border-green-700/30 hover:border-green-600/50 hover:from-green-900/50 hover:to-green-800/50 px-4 py-3 rounded-lg text-green-300 text-sm font-semibold transition" data-game="${game}">
+                        <button class="settings-game-filter-btn w-full text-left bg-white hover:bg-slate-50 px-4 py-3 rounded-lg text-slate-700 text-sm font-semibold transition shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);" data-game="${game}">
                           ${game}
                         </button>
                       `).join('')}
@@ -2134,43 +2135,43 @@
                 </div>
 
                 <div>
-                  <h4 class="text-lg font-bold text-orange-400 mb-3 flex items-center gap-2">
+                  <h4 class="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
                     <i data-lucide="archive" style="width: 18px; height: 18px;"></i>
                     Archivées
                   </h4>
-                  <button id="btn-filter-archived" class="w-full bg-gradient-to-r from-orange-900/50 to-orange-800/50 border border-orange-700/50 hover:border-orange-600/50 hover:from-orange-900/70 hover:to-orange-800/70 text-orange-300 px-4 py-3 rounded-lg transition text-left font-semibold text-sm">
+                  <button id="btn-filter-archived" class="w-full bg-white hover:bg-slate-50 text-slate-700 px-4 py-3 rounded-lg transition text-left font-semibold text-sm shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
                     Voir les entrées archivées
                   </button>
                 </div>
 
                 <div>
-                  <h4 class="text-lg font-bold text-blue-400 mb-3">Export des Données</h4>
-                  <button id="btn-export-json" class="w-full bg-gradient-to-r from-blue-900/50 to-blue-800/50 border border-blue-700/50 hover:border-blue-600/50 hover:from-blue-900/70 hover:to-blue-800/70 text-blue-300 px-4 py-3 rounded-lg transition text-left font-semibold text-sm flex items-center gap-2">
+                  <h4 class="text-lg font-bold text-slate-900 mb-3">Export des Données</h4>
+                  <button id="btn-export-json" class="w-full bg-white hover:bg-slate-50 text-slate-700 px-4 py-3 rounded-lg transition text-left font-semibold text-sm flex items-center gap-2 shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
                     <i data-lucide="download" style="width: 16px; height: 16px;"></i>
                     <span>Exporter en JSON</span>
                   </button>
                 </div>
               </div>
-              <button id="btn-logout" class="w-full bg-gradient-to-r from-red-900/50 to-red-800/50 border border-red-700/50 hover:border-red-600/50 hover:from-red-900/70 hover:to-red-800/70 text-red-300 px-4 py-3 rounded-lg transition text-left font-semibold text-sm mt-4">
+              <button id="btn-logout" class="w-full bg-red-50 hover:bg-red-100 text-red-700 px-4 py-3 rounded-lg transition text-left font-semibold text-sm mt-4 shadow-sm" style="border: 1px solid hsl(0 84% 90%);">
                 <i data-lucide="log-out" style="width: 16px; height: 16px; display: inline; margin-right: 8px;"></i>
-                <span class="text-white">Déconnexion</span>
+                <span>Déconnexion</span>
               </button>
-              <button id="btn-cancel-settings" class="w-full bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/50 text-slate-300 px-4 py-3 rounded-lg font-semibold transition mt-4">Fermer</button>
+              <button id="btn-cancel-settings" class="w-full text-white px-4 py-3 rounded-lg font-semibold transition mt-4 shadow-sm" style="background: hsl(221.2 83.2% 53.3%);">Fermer</button>
             </div>
           </div>
 
           <div id="modal-filter-games" class="hidden fixed inset-0 flex items-center justify-center z-50">
-            <div class="modal-box bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-indigo-800/50 shadow-indigo-500/20">
-              <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400 mb-6">Filtrer par Jeu</h3>
+            <div class="modal-box bg-white rounded-lg shadow-lg p-8 w-96" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
+              <h3 class="text-2xl font-black mb-6" style="color: hsl(221.2 83.2% 53.3%);">Filtrer par Jeu</h3>
               <div id="games-list" class="space-y-2 max-h-64 overflow-y-auto">
                 ${this.getAvailableGames().map(game => `
-                  <button class="game-filter-btn w-full text-left bg-gradient-to-r from-indigo-900/40 to-indigo-800/40 border border-indigo-700/30 hover:border-indigo-600/50 hover:from-indigo-900/60 hover:to-indigo-800/60 px-4 py-3 rounded-lg text-indigo-300 text-sm font-semibold transition" data-game="${game}">
+                  <button class="game-filter-btn w-full text-left bg-white hover:bg-slate-50 px-4 py-3 rounded-lg text-slate-700 text-sm font-semibold transition shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);" data-game="${game}">
                     ${game}
                   </button>
                 `).join('')}
               </div>
               <div class="flex gap-3 mt-8">
-                <button id="btn-cancel-filter-games" class="flex-1 bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/50 text-slate-300 px-4 py-3 rounded-lg font-semibold transition">Annuler</button>
+                <button id="btn-cancel-filter-games" class="flex-1 bg-white hover:bg-slate-50 text-slate-700 px-4 py-3 rounded-lg font-semibold transition shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);">Annuler</button>
               </div>
             </div>
           </div>
@@ -2579,15 +2580,15 @@
         typeSelection.id = 'modal-type-selection';
         typeSelection.className = 'hidden fixed inset-0 flex items-center justify-center z-50';
         typeSelection.innerHTML = `
-          <div class="modal-box bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-2xl p-8 w-96 border border-purple-800/50 shadow-purple-500/20">
-            <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-6">Sélectionner le type</h3>
+          <div class="modal-box bg-white rounded-lg shadow-lg p-8 w-96" style="border: 1px solid hsl(214.3 31.8% 91.4%);">
+            <h3 class="text-2xl font-black mb-6" style="color: hsl(221.2 83.2% 53.3%);">Sélectionner le type</h3>
             <div class="grid grid-cols-2 gap-3">
-              <button class="type-select-btn bg-gradient-to-r from-red-900/40 to-red-800/40 border border-red-700/30 hover:border-red-600/50 hover:from-red-900/60 hover:to-red-800/60 px-4 py-3 rounded-lg text-red-300 text-sm font-bold transition" data-type="bug">Bug</button>
-              <button class="type-select-btn bg-gradient-to-r from-blue-900/40 to-blue-800/40 border border-blue-700/30 hover:border-blue-600/50 hover:from-blue-900/60 hover:to-blue-800/60 px-4 py-3 rounded-lg text-blue-300 text-sm font-bold transition" data-type="feedback">Info</button>
-              <button class="type-select-btn bg-gradient-to-r from-green-900/40 to-green-800/40 border border-green-700/30 hover:border-green-600/50 hover:from-green-900/60 hover:to-green-800/60 px-4 py-3 rounded-lg text-green-300 text-sm font-bold transition" data-type="suggestion">Suggestion</button>
-              <button class="type-select-btn bg-gradient-to-r from-purple-900/40 to-purple-800/40 border border-purple-700/30 hover:border-purple-600/50 hover:from-purple-900/60 hover:to-purple-800/60 px-4 py-3 rounded-lg text-purple-300 text-sm font-bold transition" data-type="task">Log</button>
+              <button class="type-select-btn bg-white hover:bg-slate-50 px-4 py-3 rounded-lg text-slate-700 text-sm font-bold transition shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);" data-type="bug">Bug</button>
+              <button class="type-select-btn bg-white hover:bg-slate-50 px-4 py-3 rounded-lg text-slate-700 text-sm font-bold transition shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);" data-type="feedback">Info</button>
+              <button class="type-select-btn bg-white hover:bg-slate-50 px-4 py-3 rounded-lg text-slate-700 text-sm font-bold transition shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);" data-type="suggestion">Suggestion</button>
+              <button class="type-select-btn bg-white hover:bg-slate-50 px-4 py-3 rounded-lg text-slate-700 text-sm font-bold transition shadow-sm" style="border: 1px solid hsl(214.3 31.8% 91.4%);" data-type="task">Log</button>
             </div>
-            <button id="btn-cancel-type-selection" class="w-full bg-slate-700/50 border border-slate-600/50 hover:border-slate-500/50 text-slate-300 px-4 py-3 rounded-lg font-semibold transition mt-6">Annuler</button>
+            <button id="btn-cancel-type-selection" class="w-full text-white px-4 py-3 rounded-lg font-semibold transition mt-6 shadow-sm" style="background: hsl(221.2 83.2% 53.3%);">Annuler</button>
           </div>
         `;
         document.body.appendChild(typeSelection);
