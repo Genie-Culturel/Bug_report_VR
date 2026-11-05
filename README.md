@@ -12,7 +12,7 @@ Outil web pour gérer les sessions de playtest VR : création de sessions, saisi
 
 - Gestion des sessions de playtest (jeu, date, panel, prise de notes)
 - Saisie structurée des retours : bugs, feedbacks, questions, remarques
-- Tri du journal par criticité, persisté via `bug_entries.position`
+- Tri du journal par criticité, persisté via `gh_bug_entries.position`
 - Export JSON / journal texte
 - Interface légère, utilisable directement dans le navigateur (un seul `docs/index.html`)
 
@@ -42,8 +42,8 @@ https://genie-culturel.github.io/Bug_report_VR/?game=<nom_du_jeu>&date=YYYY-MM-D
 | `panel` | Nombre de joueurs | `5` | Non |
 | `gm` | Nom du GM/preneur de notes | `GM-423` | Non |
 | `remarks` | Remarques générales | `Session test` | Non |
-| `ref` | ID de référence externe (`bug_sessions.ref`) | `session-123` | Non |
-| `session_id` | UUID de la session GM (`vr_sessions.id` → `bug_sessions.vr_session_id`) | `a1b2c3d4-...` | Non |
+| `ref` | ID de référence externe (`gh_bug_sessions.ref`) | `session-123` | Non |
+| `session_id` | UUID de la session GM (`vr_sessions.id` → `gh_bug_sessions.vr_session_id`) | `a1b2c3d4-...` | Non |
 | `autostart` | Créer et démarrer automatiquement | `1` | Non |
 
 **Comportement:**
@@ -51,8 +51,8 @@ https://genie-culturel.github.io/Bug_report_VR/?game=<nom_du_jeu>&date=YYYY-MM-D
 - Si seul `game` est présent : ouvre le formulaire de nouvelle session avec le champ `game` pré-rempli
 - Si `autostart=1` : crée et démarre la session automatiquement, l'utilisateur arrive directement sur "Ajouter une entrée"
 - **Détection de doublons** : évite de créer des sessions en double, dans cet ordre
-  - Par `session_id` : `bug_sessions.vr_session_id` (clé primaire de dédup)
-  - Par `ref` : colonne unique `bug_sessions.ref`
+  - Par `session_id` : `gh_bug_sessions.vr_session_id` (clé primaire de dédup)
+  - Par `ref` : colonne unique `gh_bug_sessions.ref`
   - Sinon par `game` + `date` + `time`
 - Si `session_id` n'existe pas dans `vr_sessions` (contrainte FK), la session est tout de même créée **sans** `vr_session_id` (avertissement dans la console)
 - L'URL est nettoyée après traitement (`history.replaceState`, pas de recréation au rechargement)
@@ -81,14 +81,20 @@ window.open(sessionUrl.toString(), '_blank');
 
 ## Stockage (Supabase)
 
-Projet `gm-vrcenter` (`https://vxeprhyswkqugyewpwfm.supabase.co`). Client `supabase-js` chargé depuis un CDN, sans build.
+Base de production partagée (`https://dnxyidnkmtrmkxucqrry.supabase.co`). Client `supabase-js` chargé depuis un CDN, sans build.
 
 | Table | Rôle |
 |---|---|
-| `bug_sessions` | Une ligne par session de jeu |
-| `bug_entries` | Une ligne par entrée (Bug / Info / Suggestion / Log) |
+| `gh_bug_sessions` | Une ligne par session de jeu |
+| `gh_bug_entries` | Une ligne par entrée (Bug / Info / Suggestion / Log) |
 
 Les écritures sont des insert / update / delete **par ligne**. L'application ne réécrit jamais le jeu de données entier.
+
+### Configuration RLS
+
+Les tables utilisent Row Level Security (RLS) avec des politiques permettant au rôle `anon` d'effectuer toutes les opérations (SELECT, INSERT, UPDATE, DELETE). L'authentification est gérée par un code PIN (1950) côté client.
+
+Voir `migrations/` pour les fichiers SQL de configuration de la base de données.
 
 ## Structure du dépôt
 
